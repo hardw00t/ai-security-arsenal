@@ -1,0 +1,53 @@
+# DAST Scope Configuration
+
+# Domains in scope (wildcards supported)
+in_scope:
+  - "example.com"
+  - "*.example.com"
+  - "api.example.com"
+
+# Domains out of scope
+out_of_scope:
+  - "external-service.com"
+  - "cdn.example.com"
+
+# Path exclusions (won't be crawled or tested)
+exclusions:
+  paths:
+    - "/logout"
+    - "/signout"
+    - "/delete-account"
+    - "/admin/delete"
+    - "/api/user/delete"
+    - "/**/logout"
+    - "/**/delete"
+
+  # Parameters to exclude from testing
+  parameters:
+    - "csrf_token"
+    - "_csrf"
+    - "_method"
+    - "authenticity_token"
+
+  # File extensions to skip
+  file_extensions:
+    - ".pdf"
+    - ".jpg"
+    - ".png"
+    - ".gif"
+    - ".css"
+    - ".js"
+    - ".woff"
+
+# Sensitive operations to avoid
+sensitive_operations:
+  - "delete"
+  - "remove"
+  - "destroy"
+  - "terminate"
+  - "purge"
+
+# Custom headers to include in requests
+custom_headers:
+  User-Agent: "DAST Security Scanner v1.0"
+  # X-Scanner-ID: "dast-001"

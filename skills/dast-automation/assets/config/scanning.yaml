@@ -1,0 +1,57 @@
+# DAST Scanning Configuration
+
+playwright:
+  headless: true
+  timeout: 30000
+  viewport:
+    width: 1920
+    height: 1080
+  user_agent: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+
+crawling:
+  max_depth: 3
+  max_urls: 500
+  javascript_timeout: 30000
+  respect_robots_txt: true
+  follow_redirects: true
+  capture_screenshots: false
+
+rate_limiting:
+  requests_per_second: 5
+  concurrent_requests: 3
+  delay_between_requests: 200  # milliseconds
+
+testing:
+  xss:
+    enabled: true
+    payload_count: 10
+    contexts: ['html', 'attribute', 'javascript', 'url']
+
+  sqli:
+    enabled: true
+    payload_count: 8
+    blind_delay: 5  # seconds for time-based blind SQLi
+
+  csrf:
+    enabled: true
+    test_token_validation: true
+
+  idor:
+    enabled: true
+    id_range: 100  # test IDs from 1-100
+
+  open_redirect:
+    enabled: true
+    test_urls: ['https://evil.com', '//evil.com', 'javascript:alert(1)']
+
+reporting:
+  formats: ['json', 'html', 'markdown']
+  include_evidence: true
+  include_screenshots: true
+  severity_filter: ['critical', 'high', 'medium', 'low', 'info']
+
+stealth_mode:
+  enabled: false
+  random_user_agents: true
+  random_delays: true
+  randomize_test_order: true
