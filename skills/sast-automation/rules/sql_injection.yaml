@@ -1,0 +1,168 @@
+# Semgrep Rules for SQL Injection Detection
+# Multi-language patterns for detecting SQL injection vulnerabilities
+
+rules:
+  # ============= Python =============
+  - id: python-sql-injection-execute
+    message: "Potential SQL injection via string formatting in execute()"
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $CURSOR.execute("..." % $VAR)
+          - pattern: $CURSOR.execute("...".format(...))
+          - pattern: $CURSOR.execute(f"...{$VAR}...")
+          - pattern: $CURSOR.execute("..." + $VAR + "...")
+          - pattern: $CONN.execute("..." % $VAR)
+          - pattern: $CONN.execute(f"...{$VAR}...")
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+      confidence: HIGH
+
+  - id: python-django-raw-sql
+    message: "Django raw() with potential SQL injection"
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: $MODEL.objects.raw("..." % $VAR)
+          - pattern: $MODEL.objects.raw(f"...{$VAR}...")
+          - pattern: $MODEL.objects.raw("..." + $VAR)
+    metadata:
+      cwe: "CWE-89"
+      framework: django
+
+  - id: python-sqlalchemy-text
+    message: "SQLAlchemy text() with unsanitized input"
+    severity: ERROR
+    languages: [python]
+    patterns:
+      - pattern-either:
+          - pattern: text("..." % $VAR)
+          - pattern: text(f"...{$VAR}...")
+          - pattern: text("..." + $VAR)
+    metadata:
+      cwe: "CWE-89"
+      framework: sqlalchemy
+
+  # ============= JavaScript/Node.js =============
+  - id: js-sql-injection-query
+    message: "Potential SQL injection via string concatenation"
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query("..." + $VAR + "...")
+          - pattern: $DB.query(`...${$VAR}...`)
+          - pattern: $CONN.query("..." + $VAR + "...")
+          - pattern: $CONN.query(`...${$VAR}...`)
+          - pattern: $POOL.query("..." + $VAR + "...")
+          - pattern: $POOL.query(`...${$VAR}...`)
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  - id: js-sequelize-raw
+    message: "Sequelize raw query with potential SQL injection"
+    severity: ERROR
+    languages: [javascript, typescript]
+    patterns:
+      - pattern-either:
+          - pattern: sequelize.query("..." + $VAR + "...")
+          - pattern: sequelize.query(`...${$VAR}...`)
+          - pattern: $DB.query(`...${$VAR}...`, { type: QueryTypes.SELECT })
+    metadata:
+      cwe: "CWE-89"
+      framework: sequelize
+
+  # ============= Java =============
+  - id: java-sql-injection-statement
+    message: "SQL injection via Statement.execute*()"
+    severity: ERROR
+    languages: [java]
+    patterns:
+      - pattern-either:
+          - pattern: $STMT.executeQuery("..." + $VAR + "...")
+          - pattern: $STMT.execute("..." + $VAR + "...")
+          - pattern: $STMT.executeUpdate("..." + $VAR + "...")
+          - pattern: |
+              String $QUERY = "..." + $VAR + "...";
+              ...
+              $STMT.executeQuery($QUERY);
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  - id: java-hibernate-createquery
+    message: "Hibernate HQL injection"
+    severity: ERROR
+    languages: [java]
+    patterns:
+      - pattern-either:
+          - pattern: $SESSION.createQuery("..." + $VAR + "...")
+          - pattern: |
+              String $HQL = "..." + $VAR + "...";
+              ...
+              $SESSION.createQuery($HQL);
+    metadata:
+      cwe: "CWE-89"
+      framework: hibernate
+
+  # ============= Go =============
+  - id: go-sql-injection
+    message: "SQL injection via string formatting"
+    severity: ERROR
+    languages: [go]
+    patterns:
+      - pattern-either:
+          - pattern: $DB.Query(fmt.Sprintf("...", $VAR))
+          - pattern: $DB.Exec(fmt.Sprintf("...", $VAR))
+          - pattern: $DB.QueryRow(fmt.Sprintf("...", $VAR))
+          - pattern: $DB.Query("..." + $VAR + "...")
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  # ============= Ruby =============
+  - id: ruby-sql-injection
+    message: "SQL injection via string interpolation"
+    severity: ERROR
+    languages: [ruby]
+    patterns:
+      - pattern-either:
+          - pattern: $MODEL.where("...#{$VAR}...")
+          - pattern: $MODEL.find_by_sql("...#{$VAR}...")
+          - pattern: ActiveRecord::Base.connection.execute("...#{$VAR}...")
+    metadata:
+      cwe: "CWE-89"
+      framework: rails
+
+  # ============= PHP =============
+  - id: php-sql-injection
+    message: "SQL injection via variable interpolation"
+    severity: ERROR
+    languages: [php]
+    patterns:
+      - pattern-either:
+          - pattern: mysqli_query($CONN, "...$VAR...")
+          - pattern: $PDO->query("...$VAR...")
+          - pattern: mysql_query("...$VAR...")
+          - pattern: $CONN->query("...$VAR...")
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"
+
+  # ============= C# =============
+  - id: csharp-sql-injection
+    message: "SQL injection via string concatenation"
+    severity: ERROR
+    languages: [csharp]
+    patterns:
+      - pattern-either:
+          - pattern: $CMD.CommandText = "..." + $VAR + "..."
+          - pattern: new SqlCommand("..." + $VAR + "...", ...)
+          - pattern: $CONN.Execute("..." + $VAR + "...")
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021"

