@@ -58,6 +58,29 @@ iOS mobile application security testing with runtime manipulation and binary ana
 
 ---
 
+### Mobile MCP for Device Interaction
+
+Both mobile pentesting skills support **[Mobile MCP](https://github.com/mobile-next/mobile-mcp)** for advanced device, emulator, and simulator interactions:
+
+- Screen capture and UI inspection
+- Touch automation and gesture simulation
+- App lifecycle management
+- Complements Frida/Objection for scenarios requiring direct UI interaction
+
+```json
+// Add to ~/.claude/mcp.json
+{
+  "mcpServers": {
+    "mobile-mcp": {
+      "command": "npx",
+      "args": ["-y", "@anthropic/mobile-mcp", "--android"]  // or "--ios"
+    }
+  }
+}
+```
+
+---
+
 ## Web Security
 
 ### DAST Automation
@@ -323,8 +346,8 @@ aws configure  # or gcloud auth login
 
 | Category | Skill | Key Requirements |
 |----------|-------|------------------|
-| Mobile | android-pentest | ADB, Frida, objection, rooted device |
-| Mobile | ios-pentest | Frida, objection, jailbroken device, iproxy |
+| Mobile | android-pentest | ADB, Frida, objection, rooted device, [Mobile MCP](https://github.com/mobile-next/mobile-mcp) (optional) |
+| Mobile | ios-pentest | Frida, objection, jailbroken device, iproxy, [Mobile MCP](https://github.com/mobile-next/mobile-mcp) (optional) |
 | Web | dast-automation | Playwright MCP, Nuclei, Python 3.8+ |
 | Web | api-security | Burp Suite, Postman, jwt_tool |
 | Cloud | cloud-security | Cloud CLI tools (aws, gcloud, az), ScoutSuite |
