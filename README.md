@@ -1,6 +1,10 @@
 # AI Security Arsenal
 
-A comprehensive collection of skills for automated security testing, penetration testing, and security assessment workflows with coding agents like Claude Code, Codex, OpenCode, and others.
+A collection of skills for automated security testing, penetration testing, and security assessment workflows with coding agents like Claude Code, Codex, OpenCode, and others.
+
+Each skill is structured as a thin **router** (`SKILL.md`, 150-250 lines) with lazy-loaded sibling content (`workflows/`, `methodology/`, `payloads/`, `references/`, `examples/`, `schemas/`). This lets agents load only what a sub-task needs instead of parsing a monolithic document every turn — leaving more context for the actual target code, traffic, and tool output.
+
+**Last validated:** 2026-04 against frontier coding agents (Claude Opus 4.x, GPT-5.x class).
 
 ## Skills Overview
 
@@ -18,6 +22,50 @@ A comprehensive collection of skills for automated security testing, penetration
 | **Code** | [sca-security](#sca-security) | Software Composition Analysis, SBOM, dependencies |
 | **AI/ML** | [llm-security](#llm-security) | LLM security, prompt injection, OWASP LLM Top 10 |
 | **Process** | [threat-modeling](#threat-modeling) | STRIDE, PASTA, Attack Trees, threat analysis |
+
+---
+
+## Skill Architecture
+
+Every skill follows the same layout so agents can navigate them predictably:
+
+```
+skills/<skill-name>/
+├── SKILL.md           # Thin router (150-250 lines): triggers, decision tree, indexes
+├── workflows/         # Step-by-step runbooks loaded per task
+├── methodology/       # Deep methodology docs per phase
+├── payloads/          # Payload/injection/query files loaded on demand
+├── references/        # Static reference material (OWASP, CWE, tool docs)
+├── examples/          # Concise tool-call blueprints and worked examples
+├── templates/         # Report/finding templates
+├── schemas/
+│   └── finding.json   # JSON Schema for structured findings
+└── scripts/           # Executable helpers (where present)
+```
+
+Every `SKILL.md` includes:
+
+- **When NOT to use** — explicit pointers to sibling skills for overlap cases
+- **Decision tree** — how to pick the right workflow
+- **Parallelism hints** — which operations run concurrently vs sequentially
+- **Sub-agent delegation** — when to spawn parallel sub-agents (e.g., one per domain, one per tool, one per auth context)
+- **Reasoning budget** — where extended thinking pays off vs where to execute without it
+- **Multimodal hooks** — screenshots, diagrams, image-based evidence (where relevant)
+- **Output schema reference** — points at `schemas/finding.json`
+
+Findings validate against the per-skill JSON Schema, so output can be piped directly into SARIF converters, Jira, DefectDojo, or custom triage tooling.
+
+### Headline workflows (new in 2026-04)
+
+| Skill | Workflow | What it does |
+|---|---|---|
+| sast-orchestration | `workflows/triage.md` | SARIF ingest + exploitability ranking with extended thinking |
+| sca-security | `workflows/reachability_analysis.md` | Combines SBOM + SAST call graphs to filter out unreachable CVEs |
+| sca-security | `workflows/lockfile_diff.md` | PR-time review of new dependencies, new vulns, license drift |
+| container-security | `workflows/sbom_diff.md` | Compare prior vs current SBOM, flag newly-introduced CVEs |
+| threat-modeling | `workflows/stride_from_openapi.md` | Auto-generate STRIDE-per-interaction from an OpenAPI spec |
+| iac-security | `workflows/policy_as_code_loop.md` | Iterative OPA/Rego rule authoring against vulnerable fixtures |
+| llm-security | `workflows/agentic_tool_misuse.md` et al. | Agentic, memory, MCP, skill-file, computer-use, multimodal injection |
 
 ---
 
@@ -276,21 +324,23 @@ Systematic threat identification using industry frameworks and methodologies.
 
 ```
 ai-security-arsenal/
-├── skills/
-│   ├── android-pentest/      # Mobile - Android security
-│   ├── ios-pentest/          # Mobile - iOS security
-│   ├── dast-automation/      # Web - Dynamic testing
-│   ├── api-security/         # Web - API security
-│   ├── cloud-security/       # Cloud - Multi-cloud assessment
-│   ├── iac-security/         # Cloud - Infrastructure as Code
-│   ├── container-security/   # Cloud - Docker/Kubernetes
-│   ├── network-pentest/      # Network - Internal/AD testing
-│   ├── sast-orchestration/   # Code - Static analysis
-│   ├── sca-security/         # Code - Dependency scanning
-│   ├── llm-security/         # AI/ML - LLM security
-│   └── threat-modeling/      # Process - Threat analysis
-└── README.md
+├── README.md
+└── skills/
+    ├── android-pentest/      # Mobile - Android security
+    ├── ios-pentest/          # Mobile - iOS security
+    ├── dast-automation/      # Web - Dynamic testing
+    ├── api-security/         # Web - API security
+    ├── cloud-security/       # Cloud - Multi-cloud assessment
+    ├── iac-security/         # Cloud - Infrastructure as Code
+    ├── container-security/   # Cloud - Docker/Kubernetes
+    ├── network-pentest/      # Network - Internal/AD testing
+    ├── sast-orchestration/   # Code - Static analysis
+    ├── sca-security/         # Code - Dependency scanning
+    ├── llm-security/         # AI/ML - LLM security
+    └── threat-modeling/      # Process - Threat analysis
 ```
+
+Each skill directory follows the same internal layout — see [Skill Architecture](#skill-architecture).
 
 ## Quick Start
 
@@ -376,6 +426,10 @@ Agent: [Executes sast-orchestration - runs Semgrep, Bandit, aggregates findings.
 You: threat model the payment processing system
 Agent: [Executes threat-modeling - creates DFD, applies STRIDE, generates report...]
 ```
+
+**Structured output:** Each skill emits findings that validate against its `schemas/finding.json` — pipe directly into SARIF converters, issue trackers, or custom triage pipelines without reformatting.
+
+**Parallel execution:** Multi-target requests (multiple domains, multiple images, multiple clouds) are handled by spawning sub-agents per target, as documented in each skill's Sub-Agent Delegation section.
 
 **Compatible with:** Claude Code, Codex CLI, OpenCode, Aider, and other agents supporting markdown-based skill definitions.
 
