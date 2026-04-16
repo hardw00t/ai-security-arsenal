@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "cloud-security finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "cloud_provider", "service", "evidence", "reproduction", "remediation"],
+  "properties": {
+    "id": {"type": "string", "description": "Stable finding identifier, e.g. CS-AWS-S3-001"},
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "cvss": {"type": "number", "minimum": 0, "maximum": 10},
+    "cloud_provider": {"enum": ["aws", "gcp", "azure", "multi"]},
+    "account_id": {
+      "type": "string",
+      "description": "AWS account ID, GCP project ID, or Azure subscription/tenant ID"
+    },
+    "region": {"type": "string", "description": "e.g. us-east-1, europe-west1, eastus"},
+    "service": {
+      "type": "string",
+      "description": "Cloud service name (iam, s3, ec2, rds, gcs, compute, keyvault, storage, etc.)"
+    },
+    "resource_arn": {
+      "type": "string",
+      "description": "AWS ARN, GCP resource name (projects/.../...), or Azure resource ID"
+    },
+    "cis_benchmark_id": {
+      "type": "string",
+      "description": "CIS control ID, e.g. CIS-AWS-1.4, CIS-Azure-3.1, CIS-GCP-2.2"
+    },
+    "compliance": {
+      "type": "array",
+      "items": {"enum": ["CIS", "SOC2", "PCI-DSS", "HIPAA", "GDPR", "NIST-800-53", "ISO-27001"]}
+    },
+    "affected": {
+      "type": "object",
+      "properties": {
+        "resources": {"type": "array", "items": {"type": "string"}},
+        "principals": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "cli_command": {"type": "string"},
+        "cli_output": {"type": "string"},
+        "policy_document": {"type": "string"},
+        "steampipe_query": {"type": "string"},
+        "screenshot": {"type": "string"},
+        "logs": {"type": "string"}
+      }
+    },
+    "reproduction": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Ordered CLI/console steps to reproduce"
+    },
+    "privilege_escalation_path": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Ordered list of (principal -> permission -> target) hops"
+    },
+    "remediation": {"type": "string"},
+    "detection": {
+      "type": "string",
+      "description": "CloudTrail event name, GuardDuty finding type, Azure Activity Log operation, or GCP audit log MethodName that would surface exploitation"
+    },
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

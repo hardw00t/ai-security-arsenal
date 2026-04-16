@@ -1,759 +1,157 @@
 ---
 name: iac-security
-description: "Infrastructure as Code security scanning skill for Terraform, CloudFormation, Kubernetes manifests, Helm charts, and ARM templates. This skill should be used when auditing IaC configurations for misconfigurations, scanning Terraform plans, validating Kubernetes security policies, checking cloud infrastructure compliance, or integrating security into CI/CD pipelines. Triggers on requests to scan Terraform, audit CloudFormation, check Kubernetes manifests, validate Helm charts, or find IaC security issues."
+description: "Infrastructure-as-Code security scanning router for Terraform, CloudFormation, Kubernetes manifests, Helm, ARM/Bicep. Orchestrates Checkov, tfsec, Terrascan, KICS, kubesec, kube-linter, Polaris, cfn-lint/cfn-nag, and OPA/Conftest. Use when auditing IaC for misconfigurations, scanning Terraform plans, validating K8s security policies, checking cloud infrastructure compliance, or authoring custom policy-as-code (Rego)."
 ---
 
 # Infrastructure as Code Security
 
-This skill enables comprehensive security scanning of Infrastructure as Code configurations including Terraform, CloudFormation, Kubernetes manifests, Helm charts, Pulumi, and ARM templates using tools like Checkov, tfsec, Terrascan, KICS, and kubesec.
+Thin router for IaC static analysis. Pick the right workflow, run scanners in parallel, aggregate findings into `schemas/finding.json`, and (where org controls demand it) author Rego policies via the policy-as-code loop. Detailed per-stack commands and rule references live under `references/`; multi-step runbooks live under `workflows/`.
 
-## When to Use This Skill
+## When to Use
+- Scan Terraform `.tf` / plan JSON for misconfigurations
+- Audit CloudFormation YAML/JSON templates
+- Validate Kubernetes manifests (incl. rendered Helm / kustomize)
+- Validate Helm charts pre- and post-render
+- Scan ARM / Bicep templates for Azure misconfigurations
+- Verify CIS benchmark compliance across AWS / Azure / GCP / K8s
+- Integrate IaC scanning into PR gates or pre-commit hooks
+- Author custom OPA/Rego policies for org-specific controls
 
-This skill should be invoked when:
-- Scanning Terraform configurations for security misconfigurations
-- Auditing CloudFormation templates
-- Validating Kubernetes manifests and Helm charts
-- Checking ARM templates for Azure security
-- Verifying compliance with CIS benchmarks
-- Integrating security scanning into CI/CD pipelines
-- Reviewing infrastructure changes before deployment
+## Trigger Phrases
+- "scan this Terraform / audit my CloudFormation / check Kubernetes manifests"
+- "validate Helm chart security" · "IaC security scan" · "infrastructure compliance"
+- "write a Rego policy for X" · "add Conftest rule for Y"
 
-### Trigger Phrases
-- "scan this Terraform for security issues"
-- "audit my CloudFormation template"
-- "check Kubernetes manifests for misconfigurations"
-- "validate Helm chart security"
-- "IaC security scan"
-- "check infrastructure compliance"
+## When NOT to Use This Skill
+- **Runtime cloud assessment** (live AWS/Azure/GCP accounts, IAM policies in force, runtime resource state) → use `cloud-security`.
+- **Container image CVE scanning, admission control at runtime, cluster live scans** → use `container-security`.
+- **Secrets discovery in a codebase** → use `secrets-scanning` (pair with this skill for IaC files that contain secrets).
+- **Application source-code SAST** → use `code-security` / `sast`.
+- **Pure drift detection vs deployed state** — not in scope; use Terraform Cloud / Driftctl / AWS Config.
 
----
+## Decision Tree
+```
+What file(s)?
+├── .tf / .tf.json / tfplan.json   → workflows/terraform_scan.md
+├── CFN .yaml/.json/.template      → workflows/cloudformation_scan.md
+├── K8s manifests (Deployment/etc) → workflows/kubernetes_manifest_scan.md
+├── Helm chart (Chart.yaml)        → references/helm.md  (render → K8s workflow)
+├── ARM / .bicep                   → references/arm_bicep.md
+└── Need a custom org rule?        → workflows/policy_as_code_loop.md
+```
 
-## Prerequisites
+If the target mixes types (monorepo), fan out: run every applicable workflow in parallel, then merge findings with `iac_type` as the disambiguator.
 
-### Required Tools
+## Parallelism Hints
+Run concurrently (no shared state, all read-only):
+- Checkov + tfsec + Terrascan on the same Terraform dir
+- cfn-lint (first, as a gate) → then cfn-nag + Checkov + KICS in parallel
+- kubesec + kube-linter + Polaris + Checkov on K8s manifests
+- One sub-agent per IaC type when a monorepo contains multiple
 
-| Tool | Purpose | Installation |
-|------|---------|--------------|
+Must be sequential:
+- `terraform init && terraform plan && terraform show -json` BEFORE plan-based Checkov scan
+- `helm template` / `kustomize build` BEFORE manifest scanners
+- `cfn-lint` error gate BEFORE CFN security scanners (malformed templates poison the rest)
+- Findings aggregation + dedup AFTER all scanners complete
+
+## Sub-Agent Delegation
+Spawn sub-agents for:
+- **One per scanner** (Checkov / tfsec / Terrascan / KICS) in large Terraform repos — each owns its own output file, main agent aggregates.
+- **One per IaC type** in monorepos (TF sub-agent, K8s sub-agent, CFN sub-agent).
+- **Dedicated policy-author sub-agent** for `workflows/policy_as_code_loop.md` — it carries full context on Rego idioms and the PASS/FAIL fixture discipline.
+- **Dedicated aggregator sub-agent** to read all scanner JSON outputs, apply `references/severity_mapping.md`, and emit the unified report.
+
+Do NOT parallelize across sub-agents when one workflow must gate another (e.g. cfn-lint → cfn-nag).
+
+## Reasoning Budget
+- **Extended thinking ON**: writing custom Rego, interpreting cross-tool disagreements (e.g. Checkov CRITICAL + tfsec MEDIUM on the same resource), deciding whether a suppression is legitimate, designing fixture pairs.
+- **Extended thinking OFF**: running scanners, parsing their JSON, applying the severity mapping table, formatting the report, file-system operations.
+
+## Multimodal Hooks
+- Accept architecture diagrams (PNG / PDF) as context when reasoning about network boundaries and expected exposure — useful to decide whether a `0.0.0.0/0` SG rule is actually the desired public edge.
+- If the user pastes a screenshot of a scanner UI / dashboard finding, read the rule ID and resource from the image and route to the matching reference.
+
+## Structured Output
+All findings MUST conform to `schemas/finding.json`. Key IaC-specific fields: `iac_file`, `iac_type`, `resource_type`, `resource_name`, `tool`, `rule_id`, `cis_benchmark_id`, `normalized_severity`. Dedup on `(iac_file, resource_type, resource_name, category)` keeping highest normalized severity.
+
+## Quick-Start Commands
+Minimal first pass per stack — use as a smoke test before invoking a full workflow:
+```bash
+# Terraform
+checkov -d . --framework terraform -o json > /tmp/ckv.json
+tfsec . --format json                     > /tmp/tfs.json
+
+# CloudFormation (lint gate → security)
+cfn-lint templates/*.yaml && checkov -d templates/ --framework cloudformation
+
+# Kubernetes manifests
+kube-linter lint ./k8s --format json > /tmp/kl.json
+checkov -d ./k8s --framework kubernetes
+
+# Helm — render first
+helm template myrel ./chart -f values-prod.yaml | checkov -f - --framework kubernetes
+
+# ARM / Bicep
+checkov -d ./arm --framework arm
+
+# Conftest (custom org rules)
+conftest test <target> -p policy/
+```
+
+## Triage Cheatsheet
+Highest-impact finding families — fix these before anything else:
+1. **Public network ingress** on admin ports (SSH/RDP/DB) — security groups, NSGs, NACLs with `0.0.0.0/0` or `::/0` → sev=`critical`.
+2. **Public data stores** — S3 public-read, Azure storage `allowBlobPublicAccess`, RDS/CosmosDB `publicly_accessible` → sev=`critical`.
+3. **Wildcard IAM** — `Action: "*"` with `Resource: "*"` in AWS IAM / Azure role / GCP IAM binding → sev=`critical`.
+4. **Unencrypted at-rest** — S3/EBS/RDS/Azure Storage without SSE or CMK; KMS without rotation → sev=`high`.
+5. **Privileged / hostPath / hostNetwork pods** — container escape / node-level blast radius → sev=`high`.
+6. **Missing audit trails** — CloudTrail disabled, Azure Activity Log export off, VPC flow logs missing → sev=`high`.
+7. **Hardcoded secrets** in IaC — re-route to `secrets-scanning` skill, keep a breadcrumb in this report.
+
+Everything else (tagging, versioning, lifecycle, resource hygiene) queues behind the above.
+
+## Workflow Index
+| Workflow | File | Use when |
+|----------|------|----------|
+| Terraform scan | `workflows/terraform_scan.md` | Any `.tf` change or TF repo audit |
+| CloudFormation scan | `workflows/cloudformation_scan.md` | CFN templates (lint → security) |
+| Kubernetes manifest scan | `workflows/kubernetes_manifest_scan.md` | Raw K8s / rendered Helm / kustomize |
+| Policy-as-code loop | `workflows/policy_as_code_loop.md` | Authoring custom OPA/Rego rules |
+
+## Examples Index
+| File | Purpose |
+|------|---------|
+| `examples/opa_rego_templates.md` | Starter Rego for common org controls (K8s, TF, CFN) |
+| `examples/vulnerable_terraform.tf` | Intentionally-misconfigured fixture for scanner / Rego regression tests |
+
+## References Index
+| File | Contents |
+|------|----------|
+| `references/terraform.md` | Checkov / tfsec / Terrascan commands, misconfig catalog, custom checks |
+| `references/cloudformation.md` | Checkov / cfn-lint / cfn-nag / KICS commands + CFN checklist |
+| `references/kubernetes_manifests.md` | kubesec / Checkov / Trivy / kube-linter / Polaris + K8s checklist |
+| `references/helm.md` | Render-vs-direct scanning, Chart.yaml hygiene, pluto for deprecated APIs |
+| `references/arm_bicep.md` | Checkov / KICS / PSRule for Azure + ARM/Bicep checklist |
+| `references/severity_mapping.md` | Per-tool → normalized severity table, dedup key, category buckets |
+| `references/ci_cd_integration.md` | GitHub Actions / GitLab CI / pre-commit wiring, gate policy guidance |
+
+## Tools
+| Tool | Purpose | Install |
+|------|---------|---------|
 | Checkov | Multi-framework IaC scanner | `pip install checkov` |
-| tfsec | Terraform security scanner | `brew install tfsec` or `go install github.com/aquasecurity/tfsec/cmd/tfsec@latest` |
+| tfsec | Terraform security scanner | `brew install tfsec` |
 | Terrascan | Multi-cloud IaC scanner | `brew install terrascan` |
-| KICS | Keeping Infrastructure as Code Secure | Docker or binary from GitHub |
-| kubesec | Kubernetes manifest scanner | `brew install kubesec` |
+| KICS | Keeping IaC Secure (Checkmarx) | `docker pull checkmarx/kics` |
+| kubesec | K8s manifest scoring | `brew install kubesec` |
+| kube-linter | K8s rule library | `go install golang.stackrox.io/kube-linter/cmd/kube-linter@latest` |
+| Polaris | Opinionated K8s workload checks | `brew install fairwinds/tap/polaris` |
+| cfn-lint | CFN schema/intrinsic lint | `pip install cfn-lint` |
+| cfn-nag | CFN security scanner | `gem install cfn-nag` |
 | Trivy | Config scanning (IaC mode) | `brew install trivy` |
-| OPA/Conftest | Policy-as-code testing | `brew install conftest` |
-
----
-
-## Quick Start Workflow
-
-```markdown
-1. **Identify IaC Type**
-   - Terraform (.tf, .tf.json)
-   - CloudFormation (.yaml, .json, .template)
-   - Kubernetes (.yaml, .yml)
-   - Helm (Chart.yaml, templates/)
-   - ARM (.json)
-   - Pulumi (various)
-
-2. **Initial Scan**
-   - Run Checkov for comprehensive coverage
-   - Run specialized tool (tfsec for TF, kubesec for K8s)
-
-3. **Analyze Results**
-   - Prioritize by severity (CRITICAL, HIGH)
-   - Group by category (IAM, encryption, network)
-
-4. **Remediation**
-   - Fix critical issues first
-   - Use framework documentation
-   - Re-scan to verify fixes
-
-5. **CI/CD Integration**
-   - Add to pipeline
-   - Set failure thresholds
-   - Generate reports
-```
-
----
-
-## Terraform Security Scanning
-
-### Checkov for Terraform
-
-```bash
-# Scan entire directory
-checkov -d /path/to/terraform
-
-# Scan specific file
-checkov -f main.tf
-
-# Output formats
-checkov -d . -o json > results.json
-checkov -d . -o sarif > results.sarif
-checkov -d . -o junitxml > results.xml
-
-# With specific framework
-checkov -d . --framework terraform
-
-# Skip specific checks
-checkov -d . --skip-check CKV_AWS_1,CKV_AWS_2
-
-# Run specific checks only
-checkov -d . --check CKV_AWS_20,CKV_AWS_21
-
-# External checks from custom policies
-checkov -d . --external-checks-dir /path/to/custom_checks
-```
-
-### tfsec Scanning
-
-```bash
-# Basic scan
-tfsec /path/to/terraform
-
-# Output formats
-tfsec . --format json > tfsec-results.json
-tfsec . --format sarif > tfsec-results.sarif
-tfsec . --format csv > tfsec-results.csv
-
-# Minimum severity
-tfsec . --minimum-severity HIGH
-
-# Exclude specific checks
-tfsec . --exclude aws-s3-enable-bucket-logging
-
-# Include passed checks
-tfsec . --include-passed
-
-# Soft fail (exit 0 even with issues)
-tfsec . --soft-fail
-
-# Custom check directory
-tfsec . --custom-check-dir /path/to/custom
-```
-
-### Terrascan for Terraform
-
-```bash
-# Scan Terraform
-terrascan scan -t terraform
-
-# Scan with specific policy
-terrascan scan -t terraform -p aws
-
-# Output formats
-terrascan scan -t terraform -o json > terrascan.json
-terrascan scan -t terraform -o sarif > terrascan.sarif
-
-# Scan remote modules
-terrascan scan -t terraform --non-recursive
-
-# Use specific policies
-terrascan scan -t terraform --policy-type aws --policy-path /custom/policies
-```
-
-### Common Terraform Misconfigurations
-
-```markdown
-### Critical
-- [ ] S3 buckets without encryption
-- [ ] Security groups with 0.0.0.0/0 ingress
-- [ ] RDS instances publicly accessible
-- [ ] IAM policies with * actions/resources
-- [ ] Hardcoded secrets in variables
-- [ ] KMS keys without rotation
-
-### High
-- [ ] EBS volumes unencrypted
-- [ ] CloudTrail not enabled
-- [ ] VPC flow logs disabled
-- [ ] ALB without HTTPS
-- [ ] Missing resource tagging
-- [ ] Default VPC in use
-
-### Medium
-- [ ] S3 buckets without versioning
-- [ ] Missing lifecycle policies
-- [ ] Overly permissive security groups
-- [ ] Missing backup configurations
-- [ ] Weak TLS configurations
-```
-
----
-
-## CloudFormation Security Scanning
-
-### Checkov for CloudFormation
-
-```bash
-# Scan CloudFormation templates
-checkov -f template.yaml --framework cloudformation
-
-# Scan directory
-checkov -d ./cfn-templates --framework cloudformation
-
-# With parameters file
-checkov -f template.yaml --var-file parameters.json
-```
-
-### cfn-lint Integration
-
-```bash
-# Install
-pip install cfn-lint
-
-# Basic lint
-cfn-lint template.yaml
-
-# With specific rules
-cfn-lint template.yaml -a /path/to/additional/rules
-
-# Ignore rules
-cfn-lint template.yaml -i W3002
-```
-
-### KICS for CloudFormation
-
-```bash
-# Using Docker
-docker run -v /path/to/cfn:/path checkmarx/kics scan -p /path -t CloudFormation
-
-# Output formats
-docker run -v $(pwd):/path checkmarx/kics scan \
-  -p /path \
-  -t CloudFormation \
-  -o /path \
-  --report-formats json,sarif
-```
-
-### CloudFormation Security Checklist
-
-```markdown
-### IAM
-- [ ] No inline policies with *
-- [ ] Roles use least privilege
-- [ ] ManagedPolicyArns preferred over inline
-- [ ] No hardcoded credentials
-
-### Encryption
-- [ ] S3 buckets encrypted (SSE-S3 or SSE-KMS)
-- [ ] RDS encryption enabled
-- [ ] EBS volumes encrypted
-- [ ] SQS/SNS encryption enabled
-
-### Network
-- [ ] Security groups restrictive
-- [ ] NACLs properly configured
-- [ ] VPC endpoints for AWS services
-- [ ] No public IPs on internal resources
-
-### Logging
-- [ ] CloudTrail enabled
-- [ ] VPC flow logs configured
-- [ ] Access logging on S3/ALB
-- [ ] CloudWatch log retention set
-```
-
----
-
-## Kubernetes Manifest Security
-
-### kubesec Scanning
-
-```bash
-# Scan single manifest
-kubesec scan deployment.yaml
-
-# Scan via stdin
-cat deployment.yaml | kubesec scan -
-
-# JSON output
-kubesec scan deployment.yaml -o json
-
-# Remote scanning (HTTP API)
-curl -sSX POST --data-binary @deployment.yaml https://v2.kubesec.io/scan
-```
-
-### Checkov for Kubernetes
-
-```bash
-# Scan Kubernetes manifests
-checkov -d ./k8s-manifests --framework kubernetes
-
-# Scan Helm charts
-checkov -d ./helm-chart --framework helm
-
-# Scan kustomize
-checkov -d ./kustomize --framework kustomize
-```
-
-### Trivy Config Scanning
-
-```bash
-# Scan Kubernetes manifests
-trivy config ./k8s-manifests
-
-# Scan with specific severity
-trivy config --severity HIGH,CRITICAL ./k8s-manifests
-
-# Output formats
-trivy config -f json -o results.json ./k8s-manifests
-
-# Scan Helm chart
-trivy config ./my-chart
-```
-
-### OPA/Conftest for Kubernetes
-
-```bash
-# Install conftest
-brew install conftest
-
-# Test manifests against policies
-conftest test deployment.yaml -p policy/
-
-# Pull policies from OPA bundle
-conftest pull oci://ghcr.io/policies/kubernetes
-
-# Test with specific namespace
-conftest test deployment.yaml -p policy/ --namespace kubernetes
-```
-
-### Kubernetes Security Policies (OPA Rego)
-
-```rego
-# policy/deployment.rego
-
-package kubernetes
-
-# Deny containers running as root
-deny[msg] {
-    input.kind == "Deployment"
-    container := input.spec.template.spec.containers[_]
-    not container.securityContext.runAsNonRoot
-    msg := sprintf("Container %s must set runAsNonRoot", [container.name])
-}
-
-# Deny privileged containers
-deny[msg] {
-    input.kind == "Deployment"
-    container := input.spec.template.spec.containers[_]
-    container.securityContext.privileged
-    msg := sprintf("Container %s must not be privileged", [container.name])
-}
-
-# Require resource limits
-deny[msg] {
-    input.kind == "Deployment"
-    container := input.spec.template.spec.containers[_]
-    not container.resources.limits
-    msg := sprintf("Container %s must define resource limits", [container.name])
-}
-
-# Deny hostNetwork
-deny[msg] {
-    input.kind == "Deployment"
-    input.spec.template.spec.hostNetwork
-    msg := "Deployments must not use hostNetwork"
-}
-
-# Require read-only root filesystem
-deny[msg] {
-    input.kind == "Deployment"
-    container := input.spec.template.spec.containers[_]
-    not container.securityContext.readOnlyRootFilesystem
-    msg := sprintf("Container %s should use readOnlyRootFilesystem", [container.name])
-}
-```
-
-### Kubernetes Security Checklist
-
-```markdown
-### Pod Security
-- [ ] runAsNonRoot: true
-- [ ] readOnlyRootFilesystem: true
-- [ ] allowPrivilegeEscalation: false
-- [ ] privileged: false
-- [ ] capabilities dropped (ALL)
-- [ ] seccompProfile defined
-
-### Resource Management
-- [ ] CPU/memory limits set
-- [ ] CPU/memory requests set
-- [ ] No hostPID/hostIPC
-- [ ] No hostNetwork
-- [ ] No hostPath volumes
-
-### Network
-- [ ] NetworkPolicies defined
-- [ ] Ingress TLS configured
-- [ ] Service account tokens auto-mounted only when needed
-
-### Images
-- [ ] Images from trusted registries
-- [ ] Image tags pinned (no :latest)
-- [ ] Image pull policy: Always for production
-- [ ] Image signing verified
-
-### RBAC
-- [ ] Least privilege service accounts
-- [ ] No cluster-admin bindings
-- [ ] Namespace-scoped roles preferred
-```
-
----
-
-## Helm Chart Security
-
-### Helm Template Scanning
-
-```bash
-# Render templates then scan
-helm template my-release ./my-chart > rendered.yaml
-checkov -f rendered.yaml --framework kubernetes
-
-# Or with values
-helm template my-release ./my-chart -f values-prod.yaml > rendered.yaml
-kubesec scan rendered.yaml
-```
-
-### Checkov Helm Native
-
-```bash
-# Direct Helm chart scanning
-checkov -d ./my-chart --framework helm
-
-# With values file
-checkov -d ./my-chart --framework helm --var-file values-prod.yaml
-```
-
-### Chart.yaml Security
-
-```markdown
-### Verify
-- [ ] appVersion pinned to specific version
-- [ ] dependencies from trusted repos
-- [ ] kubeVersion constraints set
-- [ ] No deprecated API versions
-```
-
----
-
-## ARM Template Security
-
-### Checkov for ARM
-
-```bash
-# Scan ARM templates
-checkov -f azuredeploy.json --framework arm
-
-# Scan directory
-checkov -d ./arm-templates --framework arm
-```
-
-### KICS for ARM
-
-```bash
-# Scan ARM with KICS
-docker run -v $(pwd):/path checkmarx/kics scan \
-  -p /path \
-  -t AzureResourceManager \
-  -o /path
-```
-
-### ARM Security Checklist
-
-```markdown
-### Storage
-- [ ] Storage accounts HTTPS only
-- [ ] Blob public access disabled
-- [ ] Network rules configured
-- [ ] Encryption enabled
-
-### Compute
-- [ ] VMs with managed disks
-- [ ] Disk encryption enabled
-- [ ] No public IP where unnecessary
-- [ ] Update management configured
-
-### Network
-- [ ] NSG rules restrictive
-- [ ] No * in NSG rules
-- [ ] Azure Firewall/WAF where needed
-- [ ] Private endpoints for PaaS
-
-### Identity
-- [ ] Managed Identity preferred
-- [ ] No hardcoded credentials
-- [ ] Key Vault for secrets
-- [ ] RBAC properly scoped
-```
-
----
-
-## CI/CD Integration
-
-### GitHub Actions
-
-```yaml
-name: IaC Security Scan
-
-on:
-  pull_request:
-    paths:
-      - 'terraform/**'
-      - 'k8s/**'
-      - 'cloudformation/**'
-
-jobs:
-  checkov:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Checkov
-        uses: bridgecrewio/checkov-action@v12
-        with:
-          directory: .
-          framework: terraform,kubernetes,cloudformation
-          output_format: sarif
-          output_file_path: checkov.sarif
-          soft_fail: false
-
-      - name: Upload SARIF
-        uses: github/codeql-action/upload-sarif@v2
-        with:
-          sarif_file: checkov.sarif
-
-  tfsec:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run tfsec
-        uses: aquasecurity/tfsec-action@v1.0.0
-        with:
-          working_directory: terraform/
-          soft_fail: false
-
-  trivy-config:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Run Trivy config scan
-        uses: aquasecurity/trivy-action@master
-        with:
-          scan-type: 'config'
-          scan-ref: '.'
-          severity: 'HIGH,CRITICAL'
-          exit-code: '1'
-```
-
-### GitLab CI
-
-```yaml
-stages:
-  - security
-
-checkov:
-  stage: security
-  image: bridgecrew/checkov:latest
-  script:
-    - checkov -d . --framework terraform,kubernetes -o junitxml > checkov.xml
-  artifacts:
-    reports:
-      junit: checkov.xml
-  only:
-    changes:
-      - "**/*.tf"
-      - "**/*.yaml"
-      - "**/*.yml"
-
-tfsec:
-  stage: security
-  image: aquasec/tfsec:latest
-  script:
-    - tfsec . --format junit > tfsec.xml
-  artifacts:
-    reports:
-      junit: tfsec.xml
-  only:
-    changes:
-      - "**/*.tf"
-```
-
-### Pre-commit Hooks
-
-```yaml
-# .pre-commit-config.yaml
-repos:
-  - repo: https://github.com/antonbabenko/pre-commit-terraform
-    rev: v1.83.0
-    hooks:
-      - id: terraform_fmt
-      - id: terraform_validate
-      - id: terraform_tfsec
-      - id: checkov
-        args: ['--framework', 'terraform']
-
-  - repo: https://github.com/zricethezav/gitleaks
-    rev: v8.18.0
-    hooks:
-      - id: gitleaks
-```
-
----
-
-## Custom Policy Development
-
-### Checkov Custom Policies (Python)
-
-```python
-# custom_checks/s3_custom.py
-from checkov.terraform.checks.resource.base_resource_check import BaseResourceCheck
-from checkov.common.models.enums import CheckResult, CheckCategories
-
-class S3BucketCustomCheck(BaseResourceCheck):
-    def __init__(self):
-        name = "Ensure S3 bucket has custom tag"
-        id = "CKV_CUSTOM_1"
-        supported_resources = ['aws_s3_bucket']
-        categories = [CheckCategories.GENERAL_SECURITY]
-        super().__init__(name=name, id=id, categories=categories,
-                        supported_resources=supported_resources)
-
-    def scan_resource_conf(self, conf):
-        tags = conf.get('tags', [{}])[0]
-        if tags.get('Environment'):
-            return CheckResult.PASSED
-        return CheckResult.FAILED
-
-check = S3BucketCustomCheck()
-```
-
-### Checkov Custom Policies (YAML)
-
-```yaml
-# custom_checks/s3_custom.yaml
-metadata:
-  id: CKV_CUSTOM_2
-  name: Ensure S3 bucket name follows naming convention
-  category: CONVENTION
-  severity: LOW
-
-scope:
-  provider: aws
-
-definition:
-  cond_type: attribute
-  resource_types:
-    - aws_s3_bucket
-  attribute: bucket
-  operator: regex_match
-  value: "^(dev|staging|prod)-[a-z0-9-]+$"
-```
-
-### tfsec Custom Checks
-
-```yaml
-# .tfsec/custom_checks.yaml
-checks:
-  - code: CUS001
-    description: S3 bucket must have department tag
-    impact: Billing and ownership tracking affected
-    resolution: Add department tag to bucket
-    requiredTypes:
-      - resource
-    requiredLabels:
-      - aws_s3_bucket
-    severity: LOW
-    matchSpec:
-      name: tags
-      action: contains
-      value: Department
-    errorMessage: S3 bucket missing required Department tag
-```
-
----
-
-## Compliance Frameworks
-
-### CIS Benchmarks
-
-| Framework | Checkov Flag | tfsec Flag |
-|-----------|--------------|------------|
-| CIS AWS | `--check CKV_AWS_*` | Built-in |
-| CIS Azure | `--check CKV_AZURE_*` | Built-in |
-| CIS GCP | `--check CKV_GCP_*` | Built-in |
-| CIS Kubernetes | `--check CKV_K8S_*` | N/A |
-
-### SOC 2 / PCI DSS Mapping
-
-```bash
-# Checkov with compliance framework
-checkov -d . --framework terraform --check CKV_AWS_* --output-bc-ids
-
-# Filter by guideline
-checkov -d . --list | grep -i encryption
-```
-
----
-
-## Reporting Template
-
-```markdown
-# IaC Security Scan Report
-
-## Executive Summary
-- Scan date: YYYY-MM-DD
-- Framework(s) scanned: Terraform/K8s/CFN
-- Total findings: X
-- Critical: X | High: X | Medium: X | Low: X
-
-## Findings by Category
-
-### IAM/Access Control
-| ID | Severity | Resource | Description |
-|----|----------|----------|-------------|
-| CKV_AWS_40 | HIGH | aws_iam_policy.admin | IAM policy with * actions |
-
-### Encryption
-| ID | Severity | Resource | Description |
-|----|----------|----------|-------------|
-| CKV_AWS_19 | HIGH | aws_s3_bucket.data | S3 bucket missing encryption |
-
-### Network Security
-| ID | Severity | Resource | Description |
-|----|----------|----------|-------------|
-| CKV_AWS_24 | CRITICAL | aws_security_group.web | 0.0.0.0/0 ingress on port 22 |
-
-## Remediation Priority
-1. [CRITICAL] Fix security group CKV_AWS_24
-2. [HIGH] Enable S3 encryption CKV_AWS_19
-3. [HIGH] Restrict IAM policy CKV_AWS_40
-
-## Tool Versions
-- Checkov: X.X.X
-- tfsec: X.X.X
-- Terrascan: X.X.X
-```
-
----
-
-## Bundled Resources
-
-### scripts/
-- `scan_all.sh` - Multi-tool IaC scanning automation
-- `merge_results.py` - Combine results from multiple scanners
-- `generate_report.py` - Create consolidated HTML report
-
-### references/
-- `cis_mappings.md` - CIS benchmark control mappings
-- `checkov_checks.md` - Common Checkov check reference
-- `remediation_snippets.md` - Quick fix code snippets
-
-### checklists/
-- `terraform_audit.md` - Terraform security audit checklist
-- `kubernetes_audit.md` - Kubernetes manifest audit checklist
-- `cloudformation_audit.md` - CloudFormation audit checklist
+| OPA / Conftest | Policy-as-code | `brew install opa conftest` |
+| Regal | Rego linter | `brew install regal` |
+| pluto | Deprecated K8s API detection | `brew install FairwindsOps/tap/pluto` |
+
+## Last Validated
+2026-04. Minimum versions: Checkov ≥ 3.0, tfsec ≥ 1.28, Terrascan ≥ 1.19, Conftest ≥ 0.50, OPA ≥ 0.62, kube-linter ≥ 0.6, Polaris ≥ 9.0, cfn-lint ≥ 1.0, Trivy ≥ 0.50.

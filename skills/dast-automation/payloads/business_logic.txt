@@ -1,0 +1,63 @@
+# Business-logic abuse patterns. These require thinking about the flow, not rote injection.
+# Route: extended thinking + methodology/vuln_testing.md (business-logic section).
+
+## PRICE_QUANTITY_MANIPULATION
+# Real HackerOne pattern: addon-268-number-of-seats-0 → $0 charge.
+{"quantity": -10}
+{"quantity": 0}
+{"quantity": 2147483647}      # int32 overflow
+{"quantity": 9999999999999}   # int64 overflow
+{"price": 0.01}
+{"price": -50.00}
+{"price": "0"}                # type juggling
+{"discount_percent": 200}
+{"discount_percent": -100}
+{"currency": "VND"}           # low-value currency confusion
+{"currency": "XXX"}           # invalid currency
+
+## WORKFLOW_STEP_BYPASS
+# Multi-step flows (checkout, KYC, registration, password reset).
+# Probes:
+#  - Submit final step directly without intermediate steps
+#  - Re-order steps (step3 → step1 → step4)
+#  - Replay completed step with stale token to reset/branch state
+#  - Tamper server-recorded step id in client storage
+
+## VOUCHER_COUPON_ABUSE
+# - Re-apply same voucher in parallel sessions
+# - Apply voucher + use refund to exceed max redemptions
+# - Case-variant codes (VOUCHER10 vs voucher10) treated as separate
+# - Stack vouchers beyond published limit
+# - Combine with price-0 addons
+
+## RACE_CONDITIONS
+# Use Playwright Promise.all or Turbo Intruder single-packet attack.
+# Targets:
+#  - Voucher redemption
+#  - Balance withdrawal / transfer
+#  - Unique-constraint creation (username reservation, invitation acceptance)
+#  - Rate limits (submit N requests in single TCP packet)
+
+## ACCOUNT_ENUMERATION_VIA_TIMING
+# Login, password reset, "email exists" responses should be time-constant.
+# Measure: 100 requests with valid user vs 100 with invalid, compare p50/p95 latency.
+
+## IDOR_PATTERNS
+# Sequential: /user/1, /user/2, /user/3
+# GUID/UUID: predictable (v1 time-based) vs unpredictable (v4)
+# Timestamp-derived: /invoice/1713000000
+# Base64-wrapped numeric id
+# Hash of ID with no HMAC (rainbow-table recoverable for small domains)
+
+## MASS_ASSIGNMENT
+# Submit extra JSON keys the form doesn't expose:
+{"email": "...", "isAdmin": true}
+{"email": "...", "role": "admin"}
+{"email": "...", "balance": 1000000}
+{"email": "...", "email_verified": true}
+
+## AUTH_LOGIC
+# - Login-as / impersonation endpoints without role checks
+# - Password-reset token reuse or lack of single-use enforcement
+# - OAuth state parameter missing (CSRF on login)
+# - SSO assertion replay across tenants

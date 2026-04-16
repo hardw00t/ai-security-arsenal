@@ -1,0 +1,95 @@
+rules:
+  # ---- Python: string concat / f-string / % / .format into execute() ----
+  - id: python-sql-injection
+    languages: [python]
+    severity: ERROR
+    message: |
+      SQL query is built via string interpolation before being executed.
+      Use parameterized queries: cursor.execute(sql, (params,))
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021 - Injection"
+      confidence: HIGH
+    patterns:
+      - pattern-either:
+          - pattern: $CURSOR.execute("..." + $X + "...")
+          - pattern: $CURSOR.execute(f"...{$X}...")
+          - pattern: $CURSOR.execute("...%s..." % $X)
+          - pattern: $CURSOR.execute("...{}...".format($X))
+          - pattern: $CURSOR.executemany("..." + $X + "...", ...)
+          - pattern: $CURSOR.executemany(f"...{$X}...", ...)
+      # Skip when the variable is a string constant
+      - metavariable-pattern:
+          metavariable: $X
+          patterns:
+            - pattern-not-regex: '^".*"$'
+            - pattern-not-regex: "^'.*'$"
+    fix: $CURSOR.execute("...%s...", ($X,))
+
+  # ---- Python: taint mode (Flask request → cursor.execute) ----
+  - id: python-sql-injection-taint
+    languages: [python]
+    severity: ERROR
+    mode: taint
+    message: User input flows into SQL execute()
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021 - Injection"
+    pattern-sources:
+      - pattern: flask.request.args.get(...)
+      - pattern: flask.request.form.get(...)
+      - pattern: flask.request.json.get(...)
+      - pattern: flask.request.values.get(...)
+      - pattern: request.args.get(...)
+      - pattern: request.form.get(...)
+    pattern-sanitizers:
+      - pattern: int(...)
+      - pattern: sqlalchemy.text(...)
+    pattern-sinks:
+      - pattern: $CURSOR.execute($SQL)
+      - pattern: $CURSOR.executemany($SQL, ...)
+
+  # ---- JavaScript / Node: raw query via string interp ----
+  - id: js-sql-injection
+    languages: [javascript, typescript]
+    severity: ERROR
+    message: |
+      SQL query built via template literal / string concat; use
+      parameterized queries (e.g., knex `.where({...})`, pg `query(text, values)`).
+    metadata:
+      cwe: "CWE-89"
+    patterns:
+      - pattern-either:
+          - pattern: $DB.query(`...${$X}...`)
+          - pattern: $DB.query("..." + $X + "...")
+          - pattern: $DB.raw(`...${$X}...`)
+          - pattern: $DB.raw("..." + $X + "...")
+
+  # ---- Go: fmt.Sprintf into db.Query/Exec ----
+  - id: go-sql-injection
+    languages: [go]
+    severity: ERROR
+    message: SQL built via Sprintf / concat; use db.Query(sql, args...)
+    metadata:
+      cwe: "CWE-89"
+    pattern-either:
+      - pattern: $DB.Query(fmt.Sprintf(...))
+      - pattern: $DB.QueryContext($CTX, fmt.Sprintf(...))
+      - pattern: $DB.Exec(fmt.Sprintf(...))
+      - pattern: $DB.ExecContext($CTX, fmt.Sprintf(...))
+
+  # ---- Java: Statement.execute with concat (not PreparedStatement) ----
+  - id: java-sql-injection
+    languages: [java]
+    severity: ERROR
+    message: Use PreparedStatement with ? placeholders, not Statement + string concat
+    metadata:
+      cwe: "CWE-89"
+    patterns:
+      - pattern-either:
+          - pattern: $STMT.execute("..." + $X + "...")
+          - pattern: $STMT.executeQuery("..." + $X + "...")
+          - pattern: $STMT.executeUpdate("..." + $X + "...")
+      - pattern-inside: |
+          Statement $STMT = ...;
+          ...

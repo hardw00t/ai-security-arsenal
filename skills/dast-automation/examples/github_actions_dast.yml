@@ -1,0 +1,91 @@
+# GitHub Actions workflow: scheduled DAST with baseline diff
+# Drop this at .github/workflows/dast.yml in the target application repo.
+
+name: DAST Security Scan
+
+on:
+  schedule:
+    - cron: '0 2 * * 1'   # Mondays 02:00 UTC
+  workflow_dispatch:
+    inputs:
+      target_url:
+        description: 'Target URL to scan'
+        required: true
+        default: 'https://staging.example.com'
+      mode:
+        description: 'blackbox | greybox'
+        required: true
+        default: 'blackbox'
+
+jobs:
+  dast:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      issues: write
+      security-events: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install Playwright + deps
+        run: |
+          pip install -r scripts/requirements.txt
+          python -m playwright install --with-deps chromium
+
+      - name: Install scanners
+        run: |
+          # nuclei
+          curl -sSL https://github.com/projectdiscovery/nuclei/releases/latest/download/nuclei_linux_amd64.zip -o /tmp/n.zip
+          unzip -j /tmp/n.zip nuclei -d /usr/local/bin
+          nuclei -update-templates -silent
+
+      - name: Run DAST scan
+        env:
+          TARGET: ${{ github.event.inputs.target_url || secrets.STAGING_URL }}
+          MODE:   ${{ github.event.inputs.mode        || 'blackbox' }}
+          DAST_USER: ${{ secrets.DAST_USER }}
+          DAST_PASS: ${{ secrets.DAST_PASS }}
+        run: |
+          python3 scripts/playwright_dast_scanner.py \
+            --target "$TARGET" \
+            --mode "$MODE" \
+            --output results/output.json
+
+      - name: Diff against baseline
+        run: |
+          python3 scripts/check_findings.py \
+            --current  results/output.json \
+            --baseline .dast/baseline.json \
+            --fail-on  critical,high \
+            --out      results/diff.json
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dast-results-${{ github.run_id }}
+          path: results/
+
+      - name: Open issue on new critical/high
+        if: failure()
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const diff = JSON.parse(fs.readFileSync('results/diff.json'));
+            const body = `DAST detected new Critical/High findings.\n\n\`\`\`json\n${JSON.stringify(diff, null, 2).slice(0, 4000)}\n\`\`\``;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo:  context.repo.repo,
+              title: `DAST: new Critical/High on ${process.env.TARGET || 'target'}`,
+              body,
+              labels: ['security', 'dast']
+            });

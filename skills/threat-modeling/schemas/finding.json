@@ -1,0 +1,132 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "threat-modeling finding",
+  "type": "object",
+  "required": ["threat_id", "title", "stride_category", "element", "likelihood", "impact", "risk_score", "mitigations"],
+  "properties": {
+    "threat_id": {
+      "type": "string",
+      "description": "Unique identifier for the threat, e.g. TM-001"
+    },
+    "id": {
+      "type": "string",
+      "description": "Alias of threat_id for cross-skill aggregators"
+    },
+    "title": {
+      "type": "string",
+      "description": "Short human-readable threat title"
+    },
+    "severity": {
+      "enum": ["critical", "high", "medium", "low", "info"],
+      "description": "Derived severity for cross-skill aggregators (typically mirrors impact or residual_risk)"
+    },
+    "description": {
+      "type": "string"
+    },
+    "stride_category": {
+      "type": "array",
+      "items": {
+        "enum": ["spoofing", "tampering", "repudiation", "information_disclosure", "denial_of_service", "elevation_of_privilege"]
+      },
+      "description": "One or more STRIDE categories that apply"
+    },
+    "element": {
+      "type": "object",
+      "required": ["name", "type"],
+      "properties": {
+        "name": {"type": "string"},
+        "type": {
+          "enum": ["external_entity", "process", "data_store", "data_flow", "trust_boundary"]
+        },
+        "technology": {"type": "string"}
+      }
+    },
+    "trust_boundary": {
+      "type": "string",
+      "description": "Name of the trust boundary this threat crosses or resides in"
+    },
+    "attack_vector": {
+      "type": "string",
+      "description": "How the attacker would execute this threat"
+    },
+    "attacker_profile": {
+      "enum": ["unauthenticated_internet", "authenticated_user", "privileged_user", "insider", "supply_chain", "physical"],
+      "description": "Assumed attacker capability"
+    },
+    "likelihood": {
+      "enum": ["high", "medium", "low"]
+    },
+    "impact": {
+      "enum": ["critical", "high", "medium", "low"]
+    },
+    "risk_score": {
+      "type": "number",
+      "description": "Normalized 0-10 risk score (likelihood x impact)"
+    },
+    "dread_score": {
+      "type": "object",
+      "properties": {
+        "damage": {"type": "integer", "minimum": 0, "maximum": 10},
+        "reproducibility": {"type": "integer", "minimum": 0, "maximum": 10},
+        "exploitability": {"type": "integer", "minimum": 0, "maximum": 10},
+        "affected_users": {"type": "integer", "minimum": 0, "maximum": 10},
+        "discoverability": {"type": "integer", "minimum": 0, "maximum": 10},
+        "average": {"type": "number"}
+      }
+    },
+    "cwe": {
+      "type": "string",
+      "pattern": "^CWE-[0-9]+$"
+    },
+    "capec": {
+      "type": "string",
+      "pattern": "^CAPEC-[0-9]+$"
+    },
+    "mitre_attack": {
+      "type": "array",
+      "items": {"type": "string", "pattern": "^T[0-9]{4}(\\.[0-9]+)?$"}
+    },
+    "mitigations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["control", "type"],
+        "properties": {
+          "control": {"type": "string"},
+          "type": {"enum": ["preventive", "detective", "corrective", "deterrent"]},
+          "status": {"enum": ["proposed", "planned", "implemented", "verified"]}
+        }
+      }
+    },
+    "control_mappings": {
+      "type": "array",
+      "description": "IDs from control catalogs (NIST CSF, CIS, OWASP ASVS)",
+      "items": {
+        "type": "object",
+        "properties": {
+          "catalog": {"enum": ["NIST_CSF", "NIST_800_53", "CIS", "OWASP_ASVS", "ISO_27001", "PCI_DSS"]},
+          "id": {"type": "string"}
+        }
+      }
+    },
+    "residual_risk": {
+      "enum": ["critical", "high", "medium", "low", "accepted"]
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "dfd_reference": {"type": "string"},
+        "architecture_doc": {"type": "string"},
+        "openapi_spec": {"type": "string"},
+        "notes": {"type": "string"}
+      }
+    },
+    "status": {
+      "enum": ["identified", "analyzed", "mitigated", "accepted", "transferred", "avoided"]
+    },
+    "references": {
+      "type": "array",
+      "items": {"type": "string"}
+    }
+  }
+}

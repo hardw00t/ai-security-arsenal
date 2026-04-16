@@ -1,0 +1,103 @@
+rules:
+  # ---- Python: requests.get / urlopen with untrusted URL ----
+  - id: python-ssrf-taint
+    languages: [python]
+    severity: ERROR
+    mode: taint
+    message: User-controlled URL flows to HTTP client without allowlist
+    metadata:
+      cwe: "CWE-918"
+      owasp: "A10:2021 - SSRF"
+      confidence: HIGH
+    pattern-sources:
+      - pattern: flask.request.args.get(...)
+      - pattern: flask.request.form.get(...)
+      - pattern: flask.request.json.get(...)
+      - pattern: request.args.get(...)
+      - pattern: request.form.get(...)
+      - pattern: request.GET.get(...)
+      - pattern: request.POST.get(...)
+    pattern-sanitizers:
+      # Positive allowlist check collapses the taint
+      - patterns:
+          - pattern-inside: |
+              if $URL in $ALLOWLIST:
+                  ...
+      - patterns:
+          - pattern-inside: |
+              if urlparse($URL).hostname in $ALLOWLIST:
+                  ...
+    pattern-sinks:
+      - pattern: requests.get($URL, ...)
+      - pattern: requests.post($URL, ...)
+      - pattern: requests.put($URL, ...)
+      - pattern: requests.delete($URL, ...)
+      - pattern: requests.request(..., $URL, ...)
+      - pattern: urllib.request.urlopen($URL, ...)
+      - pattern: urllib2.urlopen($URL, ...)
+      - pattern: httpx.get($URL, ...)
+      - pattern: httpx.post($URL, ...)
+      - pattern: aiohttp.ClientSession().get($URL, ...)
+
+  # ---- Python: textual pattern fallback ----
+  - id: python-ssrf-dynamic-url
+    languages: [python]
+    severity: WARNING
+    message: HTTP client called with a non-literal URL; verify allowlist
+    metadata:
+      cwe: "CWE-918"
+    patterns:
+      - pattern-either:
+          - pattern: requests.$METHOD($URL, ...)
+          - pattern: urllib.request.urlopen($URL, ...)
+      - metavariable-pattern:
+          metavariable: $URL
+          patterns:
+            - pattern-not-regex: '^"https?://.*"$'
+            - pattern-not-regex: "^'https?://.*'$"
+      - metavariable-pattern:
+          metavariable: $METHOD
+          pattern-either:
+            - pattern: get
+            - pattern: post
+            - pattern: put
+            - pattern: delete
+            - pattern: request
+
+  # ---- JavaScript / Node: fetch / axios / http.get with variable URL ----
+  - id: js-ssrf-taint
+    languages: [javascript, typescript]
+    severity: ERROR
+    mode: taint
+    message: User input reaches HTTP client URL
+    metadata:
+      cwe: "CWE-918"
+    pattern-sources:
+      - pattern: req.query.$X
+      - pattern: req.body.$X
+      - pattern: req.params.$X
+      - pattern: req.headers.$X
+    pattern-sinks:
+      - pattern: fetch($URL, ...)
+      - pattern: axios.get($URL, ...)
+      - pattern: axios.post($URL, ...)
+      - pattern: "axios.request({ url: $URL, ... })"
+      - pattern: http.get($URL, ...)
+      - pattern: https.get($URL, ...)
+      - pattern: got($URL, ...)
+
+  # ---- Go: http.Get with variable URL (paired with G107 in gosec) ----
+  - id: go-ssrf-dynamic-url
+    languages: [go]
+    severity: WARNING
+    message: HTTP client called with non-literal URL; verify allowlist
+    metadata:
+      cwe: "CWE-918"
+    patterns:
+      - pattern-either:
+          - pattern: http.Get($URL)
+          - pattern: http.Post($URL, ...)
+          - pattern: http.NewRequest($METHOD, $URL, ...)
+      - metavariable-pattern:
+          metavariable: $URL
+          pattern-not-regex: '^"https?://[^"]+"$'
