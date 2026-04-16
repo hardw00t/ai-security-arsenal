@@ -8,9 +8,17 @@
       "type": "string",
       "description": "Unique identifier for the threat, e.g. TM-001"
     },
+    "id": {
+      "type": "string",
+      "description": "Alias of threat_id for cross-skill aggregators"
+    },
     "title": {
       "type": "string",
       "description": "Short human-readable threat title"
+    },
+    "severity": {
+      "enum": ["critical", "high", "medium", "low", "info"],
+      "description": "Derived severity for cross-skill aggregators (typically mirrors impact or residual_risk)"
     },
     "description": {
       "type": "string"

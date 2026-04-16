@@ -81,7 +81,7 @@ rules:
       - pattern: fetch($URL, ...)
       - pattern: axios.get($URL, ...)
       - pattern: axios.post($URL, ...)
-      - pattern: axios.request({ url: $URL, ... })
+      - pattern: "axios.request({ url: $URL, ... })"
       - pattern: http.get($URL, ...)
       - pattern: https.get($URL, ...)
       - pattern: got($URL, ...)
