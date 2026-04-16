@@ -96,19 +96,35 @@ def load_sarif(path: Path) -> list[dict]:
 
 
 def deduplicate(findings: list[dict], line_window: int = 3) -> list[dict]:
-    """Group by (cwe, file, ±window lines). Mark duplicates in duplicate_of[]."""
+    """Group by (cwe, file, ±window lines). Mark duplicates in duplicate_of[].
+
+    Dedup rules:
+    - Same file and line within ±window is required.
+    - If both findings carry a CWE, they must match.
+    - If either side is missing CWE, require (tool, rule_id) to match instead —
+      otherwise distinct vulns from SARIF producers that omit CWE would be
+      silently collapsed.
+    """
     findings.sort(key=lambda f: (f.get("file_path") or "", f.get("line") or 0))
     kept: list[dict] = []
     for f in findings:
         match = None
         for k in kept:
-            if k.get("cwe") and f.get("cwe") and k["cwe"] != f["cwe"]:
-                continue
             if k.get("file_path") != f.get("file_path"):
                 continue
-            if abs((k.get("line") or 0) - (f.get("line") or 0)) <= line_window:
-                match = k
-                break
+            if abs((k.get("line") or 0) - (f.get("line") or 0)) > line_window:
+                continue
+            k_cwe, f_cwe = k.get("cwe"), f.get("cwe")
+            if k_cwe and f_cwe:
+                if k_cwe != f_cwe:
+                    continue
+            else:
+                # CWE missing on at least one side — only merge when the same
+                # tool flagged the same rule at the same spot.
+                if k.get("tool") != f.get("tool") or k.get("rule_id") != f.get("rule_id"):
+                    continue
+            match = k
+            break
         if match:
             match["duplicate_of"].append(f["id"])
         else:
