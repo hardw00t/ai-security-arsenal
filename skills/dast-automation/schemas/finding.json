@@ -1,0 +1,90 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "dast-automation finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "affected", "evidence", "reproduction", "remediation"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Deterministic id: <target>-<cwe>-<hash(url+param+payload)>"
+    },
+    "title": {"type": "string", "maxLength": 120},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "owasp": {
+      "type": "string",
+      "description": "e.g. 'A03:2021-Injection'"
+    },
+    "cvss": {"type": "number", "minimum": 0, "maximum": 10},
+    "scan_mode": {"enum": ["blackbox", "greybox"]},
+    "affected": {
+      "type": "object",
+      "required": ["url", "http_method"],
+      "properties": {
+        "url": {"type": "string", "format": "uri"},
+        "http_method": {
+          "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD", "OPTIONS"]
+        },
+        "parameter": {
+          "type": "string",
+          "description": "Query, form, JSON path, or header name"
+        },
+        "parameter_location": {
+          "enum": ["query", "body", "path", "header", "cookie", "form", "json"]
+        },
+        "payload": {
+          "type": "string",
+          "description": "Exact string sent; escape as needed"
+        },
+        "http_status": {"type": "integer", "minimum": 100, "maximum": 599},
+        "authenticated_as": {
+          "type": ["string", "null"],
+          "description": "User identity used when triggering finding, or null for unauth"
+        },
+        "domain": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "request": {
+          "type": "string",
+          "description": "curl command or raw HTTP request"
+        },
+        "response": {
+          "type": "string",
+          "description": "Truncated response body / headers (<= 1 KB)"
+        },
+        "playwright_screenshot_path": {
+          "type": "string",
+          "description": "Relative path under screenshots/"
+        },
+        "playwright_trace_path": {
+          "type": "string",
+          "description": "Optional Playwright .zip trace"
+        },
+        "har_path": {
+          "type": "string",
+          "description": "Optional HAR file capturing the exchange"
+        },
+        "logs": {"type": "string"}
+      }
+    },
+    "reproduction": {
+      "type": "array",
+      "items": {"type": "string"},
+      "minItems": 1
+    },
+    "remediation": {"type": "string"},
+    "references": {
+      "type": "array",
+      "items": {"type": "string", "format": "uri"}
+    },
+    "tool": {
+      "type": "string",
+      "description": "Which tool produced this (playwright, nuclei, sqlmap, manual, ...)"
+    },
+    "discovered_at": {"type": "string", "format": "date-time"}
+  }
+}

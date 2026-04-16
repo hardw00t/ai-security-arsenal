@@ -1,0 +1,88 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "android-pentest finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "evidence", "reproduction", "remediation", "package_name"],
+  "properties": {
+    "id": {"type": "string", "description": "Stable finding id, e.g. ANDR-AUTH-001"},
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "owasp_mobile": {
+      "type": "string",
+      "description": "OWASP Mobile Top 10 category, e.g. M1, M2 (2024 edition)"
+    },
+    "mastg_id": {
+      "type": "string",
+      "description": "OWASP MASTG test id, e.g. MASTG-TEST-0001",
+      "pattern": "^MASTG-TEST-[0-9]{4}$"
+    },
+    "masvs_control": {
+      "type": "string",
+      "description": "MASVS control id, e.g. MSTG-STORAGE-1"
+    },
+    "cvss": {"type": "number", "minimum": 0, "maximum": 10},
+    "cvss_vector": {"type": "string", "pattern": "^CVSS:3\\.1/"},
+    "package_name": {
+      "type": "string",
+      "description": "Android application package id",
+      "pattern": "^[a-zA-Z][a-zA-Z0-9_]*(\\.[a-zA-Z][a-zA-Z0-9_]*)+$"
+    },
+    "app_version": {"type": "string"},
+    "target_sdk": {"type": "integer"},
+    "min_sdk": {"type": "integer"},
+    "device_id": {
+      "type": "string",
+      "description": "adb device serial (e.g. emulator-5554) where the finding was reproduced"
+    },
+    "device_profile": {
+      "type": "object",
+      "properties": {
+        "manufacturer": {"type": "string"},
+        "model": {"type": "string"},
+        "android_version": {"type": "string"},
+        "rooted": {"type": "boolean"},
+        "arch": {"type": "string"}
+      }
+    },
+    "frida_pid": {
+      "type": "integer",
+      "description": "Frida PID used to reproduce (if dynamic)"
+    },
+    "frida_script": {
+      "type": "string",
+      "description": "Filename or inline name of the Frida script that produced evidence"
+    },
+    "component": {
+      "type": "object",
+      "description": "Affected Android component",
+      "properties": {
+        "type": {"enum": ["activity", "service", "receiver", "provider", "application"]},
+        "class_name": {"type": "string"},
+        "exported": {"type": "boolean"},
+        "intent_filter": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "request": {"type": "string"},
+        "response": {"type": "string"},
+        "logcat": {"type": "string"},
+        "frida_output": {"type": "string"},
+        "screenshot": {"type": "string", "description": "Path to PNG from Mobile MCP screen capture"},
+        "file_path": {"type": "string", "description": "Extracted file relative to evidence/"},
+        "pcap": {"type": "string"},
+        "smali_snippet": {"type": "string"}
+      }
+    },
+    "reproduction": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Ordered steps including exact MCP tool calls"
+    },
+    "remediation": {"type": "string"},
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

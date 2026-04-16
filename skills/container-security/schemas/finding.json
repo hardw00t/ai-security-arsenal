@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "container-security finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "evidence", "reproduction", "remediation"],
+  "properties": {
+    "id": {"type": "string", "description": "Stable finding id, e.g. CS-2026-0001"},
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "category": {
+      "enum": [
+        "image-vuln",
+        "dockerfile-misconfig",
+        "k8s-misconfig",
+        "rbac",
+        "network-policy",
+        "runtime-anomaly",
+        "container-escape",
+        "secret-exposure",
+        "supply-chain",
+        "cis-benchmark"
+      ]
+    },
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "cve": {"type": "string", "pattern": "^CVE-[0-9]{4}-[0-9]+$"},
+    "cvss": {"type": "number", "minimum": 0, "maximum": 10},
+    "fixed_version": {"type": "string"},
+    "cis_control": {"type": "string", "description": "e.g. CIS-K8s-1.2.6 or CIS-Docker-2.8"},
+    "owasp": {"type": "string"},
+    "affected": {
+      "type": "object",
+      "properties": {
+        "image_digest": {"type": "string", "pattern": "^sha256:[a-f0-9]{64}$"},
+        "image_tag": {"type": "string", "description": "e.g. registry.example.com/app:1.4.2"},
+        "package": {"type": "string"},
+        "package_version": {"type": "string"},
+        "dockerfile_path": {"type": "string"},
+        "dockerfile_line": {"type": "integer"},
+        "cluster_name": {"type": "string"},
+        "cluster_version": {"type": "string"},
+        "namespace": {"type": "string"},
+        "resource_kind": {"type": "string", "description": "e.g. Pod, Deployment, Role, ClusterRoleBinding"},
+        "resource_name": {"type": "string"},
+        "service_account": {"type": "string"},
+        "node": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "scanner": {"type": "string", "description": "trivy|grype|syft|kubescape|kube-bench|kube-hunter|falco|docker-bench|hadolint"},
+        "scanner_version": {"type": "string"},
+        "raw_output": {"type": "string"},
+        "command": {"type": "string"},
+        "manifest_excerpt": {"type": "string"},
+        "runtime_alert": {"type": "string"},
+        "screenshot": {"type": "string"},
+        "logs": {"type": "string"}
+      }
+    },
+    "reproduction": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Ordered steps to reproduce"
+    },
+    "remediation": {"type": "string"},
+    "sbom_diff": {
+      "type": "object",
+      "description": "Set when finding originates from SBOM diff workflow",
+      "properties": {
+        "prior_sbom": {"type": "string"},
+        "current_sbom": {"type": "string"},
+        "change_type": {"enum": ["added", "removed", "version-bumped", "downgraded"]},
+        "prior_version": {"type": "string"},
+        "current_version": {"type": "string"},
+        "newly_introduced_cves": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

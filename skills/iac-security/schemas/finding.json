@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "iac-security finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "iac_file", "iac_type", "tool", "evidence", "remediation"],
+  "properties": {
+    "id": {"type": "string", "description": "Stable finding ID e.g. IAC-TF-0001"},
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "owasp": {"type": "string"},
+    "cvss": {"type": "number"},
+    "iac_file": {"type": "string", "description": "Relative path to the offending file"},
+    "iac_type": {
+      "enum": ["terraform", "cloudformation", "kubernetes", "helm", "arm", "bicep", "pulumi", "kustomize"],
+      "description": "IaC framework of the finding"
+    },
+    "resource_type": {
+      "type": "string",
+      "description": "Provider resource type, e.g. aws_s3_bucket, AWS::S3::Bucket, Deployment, Microsoft.Storage/storageAccounts"
+    },
+    "resource_name": {"type": "string", "description": "Logical resource / block name"},
+    "line_range": {
+      "type": "object",
+      "properties": {
+        "start": {"type": "integer"},
+        "end": {"type": "integer"}
+      }
+    },
+    "tool": {
+      "enum": ["checkov", "tfsec", "terrascan", "kics", "kubesec", "kube-linter", "polaris", "cfn-lint", "cfn-nag", "trivy-config", "conftest", "opa", "custom"],
+      "description": "Scanner that produced the finding"
+    },
+    "rule_id": {"type": "string", "description": "Native rule ID (CKV_AWS_20, AWS001, etc.)"},
+    "cis_benchmark_id": {"type": "string", "description": "CIS benchmark control ID if applicable (e.g. CIS-AWS-1.20)"},
+    "normalized_severity": {
+      "enum": ["critical", "high", "medium", "low", "info"],
+      "description": "Severity normalized across tools; see references/severity_mapping.md"
+    },
+    "native_severity": {"type": "string", "description": "Raw severity string from the tool"},
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "snippet": {"type": "string", "description": "Offending HCL/YAML/JSON block"},
+        "tool_output": {"type": "string"},
+        "logs": {"type": "string"}
+      }
+    },
+    "reproduction": {"type": "array", "items": {"type": "string"}},
+    "remediation": {"type": "string"},
+    "remediation_snippet": {"type": "string", "description": "Fixed HCL/YAML/JSON example"},
+    "suppressed": {"type": "boolean", "default": false},
+    "suppression_reason": {"type": "string"},
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

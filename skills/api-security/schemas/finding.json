@@ -1,0 +1,57 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "api-security finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "endpoint", "http_method", "api_type", "evidence", "reproduction", "remediation"],
+  "properties": {
+    "id": {"type": "string"},
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "owasp": {"type": "string"},
+    "owasp_api_id": {
+      "type": "string",
+      "pattern": "^API(10|[1-9]):20[0-9]{2}$",
+      "description": "e.g. API1:2023, API5:2023"
+    },
+    "cvss": {"type": "number", "minimum": 0, "maximum": 10},
+    "endpoint": {
+      "type": "string",
+      "description": "Full URL or path of the vulnerable endpoint, e.g. /api/v1/users/{id}"
+    },
+    "http_method": {
+      "enum": ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD", "TRACE", "CONNECT", "N/A"]
+    },
+    "api_type": {
+      "enum": ["rest", "graphql", "grpc", "websocket", "soap", "other"]
+    },
+    "auth_context": {
+      "enum": ["unauthenticated", "user-role", "admin-role", "service-account", "cross-tenant", "cross-user"],
+      "description": "The auth context under which the finding was reproduced"
+    },
+    "affected": {
+      "type": "object",
+      "properties": {
+        "service": {"type": "string"},
+        "version": {"type": "string"},
+        "spec_url": {"type": "string"}
+      }
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "request": {"type": "string"},
+        "response": {"type": "string"},
+        "screenshot": {"type": "string"},
+        "logs": {"type": "string"},
+        "jwt_header": {"type": "string"},
+        "jwt_payload": {"type": "string"},
+        "graphql_query": {"type": "string"}
+      }
+    },
+    "reproduction": {"type": "array", "items": {"type": "string"}},
+    "remediation": {"type": "string"},
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

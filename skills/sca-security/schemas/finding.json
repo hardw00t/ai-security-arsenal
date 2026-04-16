@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sca-security finding",
+  "type": "object",
+  "required": ["id", "title", "severity", "ecosystem", "package_name", "installed_version", "evidence", "reproduction", "remediation"],
+  "properties": {
+    "id": {"type": "string", "description": "Stable ID (e.g. SCA-001)"},
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "finding_type": {
+      "enum": ["vulnerability", "license", "malicious_package", "typosquat", "dependency_confusion", "outdated", "unmaintained"]
+    },
+    "ecosystem": {
+      "enum": ["npm", "pypi", "maven", "gradle", "cargo", "go", "rubygems", "composer", "nuget", "other"]
+    },
+    "package_name": {"type": "string"},
+    "installed_version": {"type": "string"},
+    "vulnerable_range": {"type": "string", "description": "e.g. <4.17.21 or >=1.0.0 <1.2.3"},
+    "fixed_version": {"type": "string"},
+    "cve": {"type": "string", "pattern": "^CVE-[0-9]{4}-[0-9]+$"},
+    "ghsa": {"type": "string", "pattern": "^GHSA-[a-z0-9]{4}-[a-z0-9]{4}-[a-z0-9]{4}$"},
+    "osv_id": {"type": "string"},
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "cvss": {"type": "number", "minimum": 0, "maximum": 10},
+    "epss_score": {"type": "number", "minimum": 0, "maximum": 1, "description": "Exploit Prediction Scoring System"},
+    "kev": {"type": "boolean", "description": "CISA Known Exploited Vulnerabilities flag"},
+    "is_transitive": {"type": "boolean", "description": "True if brought in via another dependency"},
+    "dependency_path": {
+      "type": "array",
+      "items": {"type": "string"},
+      "description": "Chain from direct dep to vulnerable dep, e.g. [\"express@4.17.1\", \"body-parser@1.19.0\", \"qs@6.7.0\"]"
+    },
+    "is_reachable": {
+      "enum": ["reachable", "unreachable", "unknown"],
+      "description": "Whether the vulnerable function/symbol is reachable from application entry points"
+    },
+    "reachability_evidence": {
+      "type": "object",
+      "properties": {
+        "vulnerable_symbol": {"type": "string"},
+        "call_sites": {"type": "array", "items": {"type": "string"}},
+        "call_graph_depth": {"type": "integer"},
+        "tool": {"enum": ["osv-scanner", "semgrep", "codeql", "snyk", "manual"]}
+      }
+    },
+    "exploitability_notes": {"type": "string", "description": "Context on why the vuln is / is not exploitable in this codebase"},
+    "license": {"type": "string", "description": "SPDX identifier"},
+    "license_risk": {"enum": ["permissive", "weak_copyleft", "strong_copyleft", "commercial", "unknown"]},
+    "malicious_indicators": {
+      "type": "array",
+      "items": {
+        "enum": ["install_script", "obfuscated_code", "network_beacon", "suspicious_author", "recent_publish", "name_similarity", "typosquat", "dependency_confusion"]
+      }
+    },
+    "sbom_component_ref": {"type": "string", "description": "CycloneDX bom-ref or SPDX SPDXID"},
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "lockfile": {"type": "string"},
+        "lockfile_lines": {"type": "string"},
+        "advisory_url": {"type": "string"},
+        "scanner": {"type": "string"},
+        "scanner_output": {"type": "string"}
+      }
+    },
+    "reproduction": {"type": "array", "items": {"type": "string"}},
+    "remediation": {"type": "string"},
+    "upgrade_path": {
+      "type": "object",
+      "properties": {
+        "current": {"type": "string"},
+        "target": {"type": "string"},
+        "breaking_change": {"type": "boolean"},
+        "steps": {"type": "array", "items": {"type": "string"}}
+      }
+    },
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

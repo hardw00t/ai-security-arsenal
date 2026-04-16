@@ -1,0 +1,101 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "sast-orchestration finding",
+  "type": "object",
+  "required": ["id", "tool", "rule_id", "file_path", "line", "severity", "evidence", "remediation"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Stable ID for this finding (tool + rule + location hash)"
+    },
+    "tool": {
+      "type": "string",
+      "enum": ["semgrep", "codeql", "bandit", "gosec", "brakeman", "spotbugs", "eslint-security", "phpstan", "gitleaks", "other"]
+    },
+    "rule_id": {
+      "type": "string",
+      "description": "Tool-specific rule identifier (e.g., 'python.lang.security.audit.dangerous-system-call')"
+    },
+    "title": {"type": "string"},
+    "severity": {"enum": ["critical", "high", "medium", "low", "info"]},
+    "confidence": {"enum": ["confirmed", "likely", "suspected"]},
+    "cwe": {"type": "string", "pattern": "^CWE-[0-9]+$"},
+    "owasp": {"type": "string"},
+    "cvss": {"type": "number"},
+    "file_path": {"type": "string"},
+    "line": {"type": "integer", "minimum": 1},
+    "column": {"type": "integer", "minimum": 0},
+    "end_line": {"type": "integer"},
+    "end_column": {"type": "integer"},
+    "snippet": {
+      "type": "string",
+      "description": "The vulnerable code fragment"
+    },
+    "language": {"type": "string"},
+    "message": {"type": "string"},
+    "exploitability_rank": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 5,
+      "description": "Post-triage ranking: 1=trivial exploit, 5=theoretical/defense-in-depth"
+    },
+    "is_reachable": {
+      "type": "boolean",
+      "description": "Whether sink is reachable from an untrusted source/entry point"
+    },
+    "taint_source": {
+      "type": "object",
+      "properties": {
+        "file_path": {"type": "string"},
+        "line": {"type": "integer"},
+        "description": {"type": "string"}
+      }
+    },
+    "taint_sink": {
+      "type": "object",
+      "properties": {
+        "file_path": {"type": "string"},
+        "line": {"type": "integer"},
+        "description": {"type": "string"}
+      }
+    },
+    "taint_flow": {
+      "type": "array",
+      "description": "Ordered intermediate nodes from source to sink",
+      "items": {
+        "type": "object",
+        "properties": {
+          "file_path": {"type": "string"},
+          "line": {"type": "integer"},
+          "snippet": {"type": "string"}
+        }
+      }
+    },
+    "duplicate_of": {
+      "type": "array",
+      "description": "IDs of findings from other tools covering the same vulnerability",
+      "items": {"type": "string"}
+    },
+    "is_false_positive": {"type": "boolean"},
+    "fp_reason": {
+      "type": "string",
+      "enum": ["dead_code", "test_only", "sanitized", "orm_safe", "framework_auto_escape", "hardcoded_safe_input", "validated_allowlist", "not_user_controlled", "other"]
+    },
+    "evidence": {
+      "type": "object",
+      "properties": {
+        "snippet": {"type": "string"},
+        "sarif_blob": {"type": "string"},
+        "taint_path": {"type": "string"},
+        "logs": {"type": "string"}
+      }
+    },
+    "reproduction": {"type": "array", "items": {"type": "string"}},
+    "remediation": {"type": "string"},
+    "fix_suggestion": {
+      "type": "string",
+      "description": "Concrete patch (diff or replacement code)"
+    },
+    "references": {"type": "array", "items": {"type": "string"}}
+  }
+}

