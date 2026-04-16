@@ -8,6 +8,11 @@ REPO="${1:-.}"
 OUT="${2:-./sast-results}"
 mkdir -p "$OUT"
 
+# Resolve to absolute paths so per-tool branches that `cd` into $REPO (e.g.
+# eslint) still write outputs under the original $OUT.
+REPO="$(cd "$REPO" && pwd)"
+OUT="$(cd "$OUT" && pwd)"
+
 echo "[*] SAST orchestration: repo=$REPO out=$OUT"
 
 # Always-on, language-agnostic
