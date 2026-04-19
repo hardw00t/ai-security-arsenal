@@ -24,7 +24,7 @@ Emit findings via `../schemas/finding.json`.
 
 - **CVE / Source:** CVE-2024-21626; Wiz "Leaky Vessels" analysis (80% of cloud environments vulnerable at disclosure).
 - **Summary:** runC’s `execve` path combined with an unsafe `prctl(PR_SET_NO_NEW_PRIVS)` transition and a file descriptor leaked from the host allows a malicious image or `exec` to access a host-side fd pointing at `/`, yielding full host filesystem access and escape.
-- **Affected surface:** runC ≤ 1.1.11, Docker ≤ 25.0.2, containerd ≤ 1.6.28, Kubernetes worker nodes using pre-patched container runtime; GPU / ML workloads common victims.
+- **Affected surface:** runC ≤ 1.1.11, Docker ≤ 25.0.2, containerd < 1.6.28, Kubernetes worker nodes using pre-patched container runtime; GPU / ML workloads common victims.
 - **Detection (automated):**
   ```bash
   # On node

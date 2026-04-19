@@ -76,7 +76,7 @@ chain research. Last validated: 2026-04. Emit findings via `../schemas/finding.j
   ```
 - **Exploitation / PoC (defender reproduction):** Use the Datadog Security Labs published reproducer in an isolated container; do not run against production workstations.
 - **Indicators:** Unexpected writes to `~/.ssh`, `~/.aws`, `~/.bashrc` during git operations.
-- **Mitigation:** Update Git to patched release; `GIT_PROTOCOL_ALLOW=""`; forbid recursive submodule init for untrusted sources; run clone in ephemeral container.
+- **Mitigation:** Update Git to patched release; restrict transports with `GIT_ALLOW_PROTOCOL=https:git:ssh` (blocks `file://`, `ext::` which carry the submodule vector); forbid recursive submodule init for untrusted sources; run clone in ephemeral container.
 - **Cross-refs:** CWE-22, CWE-59; related → P30, P31.
 
 ### P33. Transitive Dependency Reachability Blind Spots

@@ -151,7 +151,7 @@ blast radius on the host.
 
 ## 9. runC `PR_SET_NO_NEW_PRIVS` escape (CVE-2024-21626)
 
-Affected: runC ≤ 1.1.11, Docker ≤ 25.0.2, containerd ≤ 1.6.28, BuildKit ≤ 0.12.4.
+Affected: runC ≤ 1.1.11, Docker ≤ 25.0.2, containerd < 1.6.28, BuildKit ≤ 0.12.4.
 
 Preferred verification path is the non-weaponized detector set from Snyk:
 
