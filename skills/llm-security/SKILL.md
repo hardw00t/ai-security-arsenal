@@ -197,6 +197,7 @@ vector), `success_indicator`, `owasp_llm_id`, `defense_bypassed`.
 | `references/owasp_llm_top10_2025.md` | OWASP LLM Top 10 table + 2026 coverage checklist |
 | `references/defense_patterns_2026.md` | Constitutional, classifiers, spotlighting, HITL, allowlisting — with known bypass hints |
 | `references/threat_model_agents.md` | Actors, assets, surfaces, T1-T10 scenarios for agentic systems |
+| `references/bounty_patterns_2024_2026.md` | Post-2023 public bug-bounty TTPs (RAG poisoning, CVE-2025-53773 tool-chain RCE, multimodal injection, adaptive defense evasion) |
 
 ## Examples
 

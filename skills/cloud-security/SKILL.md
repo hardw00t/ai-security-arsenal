@@ -132,6 +132,7 @@ All findings conform to `schemas/finding.json`. Key cloud-specific fields:
 | `references/azure.md` | az CLI commands, ARM + Entra ID enumeration, Key Vault/Storage/NSG checks |
 | `references/cloud_tools.md` | ScoutSuite / Prowler / CloudSploit / Steampipe / Pacu / ROADtools comparison + invocation |
 | `references/steampipe_queries.sql` | Ready-to-run Steampipe SQL covering public storage, permissive IAM, exposed network, encryption gaps — cross-cloud patterns |
+| `references/bounty_patterns_2024_2026.md` | Post-2023 bounty TTPs (ConfusedFunction, Cloud Run bypass, Compute IAM + tag chain, AWSMarketplaceFullAccess → admin, SSRF DNS rebinding, CVE-2025-61882 Oracle EBS, blind-SSRF redirect loop) |
 
 ## Tools
 
