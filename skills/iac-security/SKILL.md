@@ -135,6 +135,7 @@ Everything else (tagging, versioning, lifecycle, resource hygiene) queues behind
 | `references/arm_bicep.md` | Checkov / KICS / PSRule for Azure + ARM/Bicep checklist |
 | `references/severity_mapping.md` | Per-tool → normalized severity table, dedup key, category buckets |
 | `references/ci_cd_integration.md` | GitHub Actions / GitLab CI / pre-commit wiring, gate policy guidance |
+| `references/bounty_patterns_2024_2026.md` | Post-2023 bounty TTPs (Terraform OIDC AWS trust misconfig, Helm dev/prod parity drift, unauth kube-apiserver exposure, shift-left maturity gaps) |
 
 ## Tools
 | Tool | Purpose | Install |

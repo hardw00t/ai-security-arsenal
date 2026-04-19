@@ -155,6 +155,7 @@ findings.
 | [`references/kubernetes_hardening.md`](references/kubernetes_hardening.md)    | kube-bench, Kubescape, CIS K8s mapping, PSS        |
 | [`references/container_escape.md`](references/container_escape.md)            | Escape vectors, capabilities, runtime CVEs         |
 | [`references/runtime_security.md`](references/runtime_security.md)            | Falco, Tetragon, eBPF, rule authoring              |
+| [`references/bounty_patterns_2024_2026.md`](references/bounty_patterns_2024_2026.md) | Post-2023 bounty TTPs (CVE-2024-21626 runC, CVE-2025-23266 NVIDIA, SA token theft, RoleBinding privesc) |
 
 ## Examples Index
 

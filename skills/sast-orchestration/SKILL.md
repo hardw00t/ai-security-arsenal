@@ -144,6 +144,7 @@ Use SARIF 2.1.0 for tool-native emission; convert to the finding schema during a
 | [references/spotbugs.md](references/spotbugs.md) | Java bytecode + Find Security Bugs: Maven/Gradle setup, FSB detectors |
 | [references/eslint_security.md](references/eslint_security.md) | JS/TS security plugins: flat-config + legacy |
 | [references/sarif_format.md](references/sarif_format.md) | SARIF 2.1.0 schema, codeFlows, fingerprinting, emission flags |
+| [references/bounty_patterns_2024_2026.md](references/bounty_patterns_2024_2026.md) | Post-2023 bounty TTPs as SAST rule ideas (prototype-pollution, ORM JOIN leakage, AI-tool-call injection in repo/config strings) |
 
 ## Examples Index
 

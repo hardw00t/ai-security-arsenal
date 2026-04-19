@@ -168,6 +168,7 @@ Upgrade paths (see per-ecosystem reference for commands):
 | [sbom_formats.md](references/sbom_formats.md) | CycloneDX 1.6 vs SPDX 2.3 field-by-field |
 | [vuln_databases.md](references/vuln_databases.md) | NVD, OSV, GHSA, ecosystem DBs — coverage + gaps |
 | [malicious_package_indicators.md](references/malicious_package_indicators.md) | Signal catalog + triage matrix |
+| [bounty_patterns_2024_2026.md](references/bounty_patterns_2024_2026.md) | Post-2023 supply-chain bounty TTPs (Shai-Hulud 2.0 npm worm, tj-actions/changed-files compromise, CVE-2025-48384 git, transitive reachability) |
 
 ## Templates Index
 

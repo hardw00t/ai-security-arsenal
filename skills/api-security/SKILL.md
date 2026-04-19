@@ -129,6 +129,7 @@ Every finding: `schemas/finding.json`. Required API-specific fields:
 |---------------------------------------|------------------------------------------------------|
 | `methodology/api_recon.md`            | Before attack: building endpoint + auth inventory    |
 | `methodology/bola_bfla_matrix.md`     | Authorization testing — highest-value phase          |
+| `methodology/bounty_patterns_2024_2026.md` | Post-2023 public bug-bounty TTPs (OAuth ATO, JWT `request_uri`, refresh-token persistence, mass-assignment, ORM leakage) |
 
 ## Payloads Index
 

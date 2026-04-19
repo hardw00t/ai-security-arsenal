@@ -133,6 +133,7 @@ Every output entry conforms to `schemas/finding.json`. DAST-specific fields: `af
 | File | Content |
 |------|---------|
 | `references/hackerone_attack_patterns.md`    | 6,894 HackerOne patterns across 157 categories (pointer — don't inline) |
+| `references/bounty_patterns_2024_2026.md`    | Post-2023 bounty TTPs (TE.0 smuggling, HTTP/2 CONNECT scan, WAFFLED parser bypass, SVG/popover XSS, base64-SSRF, prototype pollution, cache deception) |
 | `references/advanced_exploitation_techniques.md` | OS-tool deep dives (sqlmap, nuclei, jwt_tool, etc.) |
 | `references/dast_methodology.md`             | Full long-form methodology |
 | `references/playwright_security_patterns.md` | Playwright-specific security patterns |
